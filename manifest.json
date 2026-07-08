@@ -25,13 +25,14 @@
         "features/context-menu/reply-with-meeting.js",
         "features/categories/categories.js",
         "features/context-menu/context-menu.js",
+        "features/quick-views/quick-views.js",
         "core/bootstrap.js"
       ]
     },
     {
       "matches": ["https://mail.google.com/*", "https://calendar.google.com/*"],
       "run_at": "document_start",
-      "css": ["features/dark-mode/dark-mode.css"]
+      "css": ["features/dark-mode/dark-mode.css", "features/quick-views/quick-views.css"]
     }
   ]
 }
