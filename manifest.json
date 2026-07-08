@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Outlook-Bridge",
+  "version": "0.1.0",
+  "description": "Make Gmail + Google Calendar behave like Outlook.",
+  "icons": { "16": "assets/icon16.png", "48": "assets/icon48.png", "128": "assets/icon128.png" },
+  "permissions": ["storage"],
+  "host_permissions": ["https://mail.google.com/*", "https://calendar.google.com/*"],
+  "options_page": "options/options.html",
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*", "https://calendar.google.com/*"],
+      "run_at": "document_idle",
+      "js": [
+        "core/namespace.js",
+        "core/settings.js",
+        "core/bootstrap.js"
+      ]
+    }
+  ]
+}

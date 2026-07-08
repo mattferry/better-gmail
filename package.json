@@ -1,0 +1,9 @@
+{
+  "name": "outlook-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Make Gmail + Google Calendar behave like Outlook.",
+  "scripts": {
+    "test": "node --test"
+  }
+}
