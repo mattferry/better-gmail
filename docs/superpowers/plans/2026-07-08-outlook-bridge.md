@@ -1,4 +1,4 @@
-# Outlook-Bridge Implementation Plan
+# Better Gmail Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -41,7 +41,7 @@ You have zero context for this project. Here is everything environment-specific 
 1. Open `chrome://extensions`.
 2. Toggle **Developer mode** on (top-right).
 3. **Load unpacked** → select the repo root (`C:\Users\mferr\outlook-bridge`).
-4. After any code change: click the **↻ reload** icon on the Outlook-Bridge card, then hard-refresh the Gmail/Calendar tab (`Ctrl+Shift+R`).
+4. After any code change: click the **↻ reload** icon on the Better Gmail card, then hard-refresh the Gmail/Calendar tab (`Ctrl+Shift+R`).
 5. To read our logs: open the Gmail tab, DevTools (`F12`) → Console → filter by `[OB]`.
 
 ### How to run the automated tests
@@ -245,7 +245,7 @@ Expected: PASS — 3 tests.
 ```js
 (function () {
   'use strict';
-  console.log('[OB] Outlook-Bridge loaded on', location.host);
+  console.log('[OB] Better Gmail loaded on', location.host);
   // Feature init is added in later tasks.
 })();
 ```
@@ -256,7 +256,7 @@ Expected: PASS — 3 tests.
 ```json
 {
   "manifest_version": 3,
-  "name": "Outlook-Bridge",
+  "name": "Better Gmail",
   "version": "0.1.0",
   "description": "Make Gmail + Google Calendar behave like Outlook.",
   "icons": { "16": "assets/icon16.png", "48": "assets/icon48.png", "128": "assets/icon128.png" },
@@ -283,7 +283,7 @@ Expected: PASS — 3 tests.
 Manual verification:
 1. `chrome://extensions` → Developer mode → Load unpacked → repo root. Card appears, no errors.
 2. Open `https://mail.google.com`, open DevTools console, filter `[OB]`.
-3. Expected: `[OB] Outlook-Bridge loaded on mail.google.com`.
+3. Expected: `[OB] Better Gmail loaded on mail.google.com`.
 4. Open `https://calendar.google.com`, same log with `calendar.google.com`.
 
 - [ ] **Step 12: Commit**
@@ -620,7 +620,7 @@ NOTE: some selectors only exist after a row is selected (e.g. `markUnread`), so 
 ```js
 (function () {
   'use strict';
-  console.log('[OB] Outlook-Bridge loaded on', location.host);
+  console.log('[OB] Better Gmail loaded on', location.host);
   const OB = window.__OB;
   OB.router.onNavigate(() => {
     setTimeout(() => OB.selfTest.run(), 500);
@@ -768,7 +768,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 <html>
 <head><meta charset="utf-8"><link rel="stylesheet" href="options.css"></head>
 <body>
-  <h1>Outlook-Bridge settings</h1>
+  <h1>Better Gmail settings</h1>
   <section>
     <label>Dark mode
       <select id="darkMode">
@@ -827,7 +827,7 @@ load();
 ```
 
 - [ ] **Step 4: Manual verification**
-1. Reload extension → `chrome://extensions` → Outlook-Bridge → **Details** → **Extension options**.
+1. Reload extension → `chrome://extensions` → Better Gmail → **Details** → **Extension options**.
 2. Toggle "Dark mode in Gmail" off → switch to the Gmail tab → body goes light (the `onChange` listener from Task 3 re-applies). Toggle on → dark returns.
 3. Confirm each checkbox persists across a page reload.
 
@@ -1340,7 +1340,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ## Final: README + distribution notes
 
-- [ ] **Step 1: Write `README.md`** with: what it does, how coworkers install it (Load unpacked), how to update, the per-feature options, and a "if a feature stops working, check the console for `[OB] self-test` warnings — Gmail probably changed its HTML; ping Matt" note. Add a maintainer section: enterprise force-install path (`ExtensionInstallForcelist` + self-hosted `.crx`) for later org-wide rollout.
+- [ ] **Step 1: README + LICENSE already exist** (`README.md`, `LICENSE` — MIT) with the product positioning, feature list, install steps, options, maintenance/selector-drift note, and enterprise force-install path. Do NOT overwrite them. Only append/adjust if a feature you built diverged from what the README describes (e.g. a renamed option) — keep the "built for orgs with NO Gmail API access" framing intact.
 
 - [ ] **Step 2: Full test sweep** — `node --test` → all suites pass (settings, label-tree, reply-with-meeting, categories).
 

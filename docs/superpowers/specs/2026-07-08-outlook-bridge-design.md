@@ -1,4 +1,4 @@
-# Outlook-Bridge — Design Spec
+# Better Gmail — Design Spec
 
 **Date:** 2026-07-08
 **Author:** Matt Ferry (mferr) + Claude
