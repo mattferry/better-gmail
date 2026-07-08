@@ -1,9 +1,13 @@
 (function () {
   'use strict';
 
-  // Cached module-scoped settings, refreshed each time init() runs (matches how
-  // contextMenu's on/off flag was already handled before this fix).
+  // Cached module-scoped settings, refreshed each time init() runs. The listener
+  // is bound once and gated on contextMenuEnabled, so toggling the feature in
+  // options takes effect live (no page reload) without add/removeEventListener
+  // churn. contextMenuEnabled defaults false so we never hijack a right-click
+  // before settings confirm the feature is on (fail safe -> native menu).
   let categoriesEnabled = true;
+  let contextMenuEnabled = false;
 
   // Wrap a callback so a thrown error is caught and logged instead of escaping.
   // Menu-item onClicks fire later (from ui.js's own click listener), outside
@@ -15,6 +19,7 @@
   }
 
   function onContextMenu(e) {
+    if (!contextMenuEnabled) return; // feature off -> let the native browser/Gmail menu appear
     const OB = window.__OB;
     let row;
     try {
@@ -70,11 +75,14 @@
   }
 
   function init() {
-    window.__OB.settings.get('categories').then((on) => { categoriesEnabled = !!on; });
+    const S = window.__OB.settings;
+    S.get('categories').then((on) => { categoriesEnabled = !!on; })
+      .catch((e) => console.log('[OB] context-menu: categories read failed', e));
+    S.get('contextMenu').then((on) => { contextMenuEnabled = !!on; })
+      .catch((e) => console.log('[OB] context-menu: contextMenu read failed', e));
+    // Bind the listener exactly once; the handler itself respects contextMenuEnabled.
     if (document.__obCtxBound) return; document.__obCtxBound = true;
-    window.__OB.settings.get('contextMenu').then((on) => {
-      if (on) document.addEventListener('contextmenu', onContextMenu, true);
-    });
+    document.addEventListener('contextmenu', onContextMenu, true);
   }
   const api = { init };
   if (typeof window !== 'undefined') (window.__OB = window.__OB || {}).contextMenu = api;
