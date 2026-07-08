@@ -34,8 +34,10 @@ see [Maintenance](#maintenance).
 ## Features
 
 - **Real dark mode** — inverts email bodies (the white HTML emails Gmail leaves bright even
-  in its own dark theme), the way Outlook does it, and cleans up Calendar's residual white
-  surfaces. Photos and logos are un-inverted so they still look right.
+  in its own dark theme), the way Outlook does it. Photos and logos are un-inverted so they
+  still look right. Calendar relies on Google's own native dark theme; Better Gmail's
+  cleanup of any residual white surfaces there is best-effort and pending a verified
+  selector (see [Maintenance](#maintenance)).
 - **Folder Illusionist** — a **Move to Folder** button that shows your labels as a folder
   tree and, on click, applies the label *and* archives the mail in one action — mimicking
   Outlook's "move" instead of Gmail's "label but leave it in the inbox."

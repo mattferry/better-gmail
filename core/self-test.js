@@ -1,5 +1,15 @@
 (function () {
   'use strict';
+
+  // Selectors that should be present in ANY steady view of the app (not gated behind
+  // a particular UI being open, a row being selected, etc). Everything else in a
+  // SELECTORS map is contextual — its absence is expected a lot of the time and
+  // should not be reported as a possible breakage.
+  const ALWAYS_PRESENT = {
+    'mail.google.com': ['toolbar', 'leftNavLabelLink', 'listRow', 'searchInput'],
+    'calendar.google.com': ['settingsGear']
+  };
+
   function run() {
     const host = location.host;
     const A = window.__OB && window.__OB.gmail;
@@ -16,9 +26,19 @@
         results.push({ name, sel, ok: !!document.querySelector(sel) });
       }
     }
+    const alwaysPresent = ALWAYS_PRESENT[host] || [];
     const broken = results.filter((r) => !r.ok);
-    if (broken.length) console.warn('[OB] self-test: selectors not found (Gmail may have changed):', broken);
-    else console.log('[OB] self-test: all', results.length, 'selectors OK');
+    const critical = broken.filter((r) => alwaysPresent.includes(r.name));
+    const contextual = broken.filter((r) => !alwaysPresent.includes(r.name));
+    if (critical.length) {
+      console.warn('[OB] self-test: critical selectors not found (Gmail may have changed):', critical);
+    }
+    if (contextual.length) {
+      console.log('[OB] self-test: contextual selectors absent (expected unless that UI is open):', contextual);
+    }
+    if (!critical.length) {
+      console.log('[OB] self-test: all', results.length, 'selectors OK');
+    }
     return results;
   }
   const api = { run };

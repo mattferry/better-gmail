@@ -96,6 +96,12 @@
   // BEST-EFFORT / UNVERIFIED — needs live tuning against the real dropdown DOM (see task-2 Step 3).
   // Strategy: the dropdown has a filter input; set its value, dispatch 'input',
   // then find the option whose text === leaf label name and click it.
+  //
+  // LIVE-TUNING: Gmail renders the Move-to / Labels dropdown ASYNCHRONOUSLY after the
+  // button click. A synchronous query here will miss it. The live-tuning pass must wait
+  // for the dropdown (MutationObserver or a short requestAnimationFrame/setTimeout retry)
+  // BEFORE setting the filter input and clicking the matching option — this is NOT just a
+  // selector swap.
   function selectFromNativeDropdown(labelFullName, keepInInbox) {
     // keepInInbox is reserved for future divergence between Move-to and Labels dropdown
     // handling; both currently use the same filter-and-click mechanics.
@@ -133,6 +139,11 @@
   function closestRow(el) {
     return el && (el.closest(SELECTORS.listRow) || el.closest(SELECTORS.rowFallback));
   }
+  // Main-scoped only: matches a real message-list row (div[role="main"] tr[role="row"]).
+  // Used where we need certainty we're targeting an actual list row (e.g. the context
+  // menu) rather than closestRow's broad rowFallback, which can match unrelated
+  // role="row" elements outside the message list.
+  function closestListRow(el) { return el ? el.closest(SELECTORS.listRow) : null; }
 
   function openCreateFilterForRow(rowEl) {
     // Gmail: open search options with the sender prefilled, which exposes "Create filter".
@@ -148,6 +159,6 @@
 
   const api = { isReady, getToolbar, getLeftNavLabels, getSelectedRowEls, getRowInfo,
     getOpenThreadRecipients, clickMoveTo, applyLabel, markUnread, markRead,
-    openCreateFilterForRow, archive, del, snooze, closestRow, selectRow, SELECTORS };
+    openCreateFilterForRow, archive, del, snooze, closestRow, closestListRow, selectRow, SELECTORS };
   if (typeof window !== 'undefined') (window.__OB = window.__OB || {}).gmail = api;
 })();

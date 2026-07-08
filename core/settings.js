@@ -11,7 +11,6 @@
     quickViews: true,
     confirmBeforeDelete: true,
     compactDensity: false,
-    categoryDefs: null,        // null => use categories DEFAULT_CATEGORIES
   };
 
   function mergeDefaults(stored) {

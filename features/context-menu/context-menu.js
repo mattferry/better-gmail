@@ -1,8 +1,9 @@
 (function () {
   'use strict';
-  function rowFromEvent(e) {
-    return window.__OB.gmail.closestRow(e.target);
-  }
+
+  // Cached module-scoped settings, refreshed each time init() runs (matches how
+  // contextMenu's on/off flag was already handled before this fix).
+  let categoriesEnabled = true;
 
   // Wrap a callback so a thrown error is caught and logged instead of escaping.
   // Menu-item onClicks fire later (from ui.js's own click listener), outside
@@ -17,20 +18,31 @@
     const OB = window.__OB;
     let row;
     try {
-      row = rowFromEvent(e);
+      row = OB.gmail.closestListRow(e.target);
     } catch (err) {
       console.warn('[OB] context-menu: row lookup failed', err);
       return; // fail safe -> let the native browser/Gmail menu appear
     }
-    if (!row) return; // not on a message row -> let Gmail/browser handle it
+    if (!row) return; // not on a message row -> let Gmail/browser handle it, no preventDefault
+    let ok;
+    try {
+      ok = OB.gmail.selectRow(row);
+    } catch (err) {
+      console.warn('[OB] context-menu: selectRow failed', err);
+      return; // fail safe -> let the native browser/Gmail menu appear
+    }
+    if (!ok) return; // couldn't confirm/select the row -> fall back to native menu, no preventDefault
     e.preventDefault();
     try {
-      try { window.__OB.gmail.selectRow(row); } catch (e) { /* never break Gmail */ }
       const info = OB.gmail.getRowInfo(row);
       const items = [
         { label: 'Mark as unread', onClick: guard('markUnread', () => OB.gmail.markUnread([row])) },
-        { label: 'Mark as read', onClick: guard('markRead', () => OB.gmail.markRead([row])) },
-        { label: 'Categorize…', onClick: guard('categorize', () => openCategorySubmenu(e.clientX, e.clientY)) },
+        { label: 'Mark as read', onClick: guard('markRead', () => OB.gmail.markRead([row])) }
+      ];
+      if (categoriesEnabled) {
+        items.push({ label: 'Categorize…', onClick: guard('categorize', () => openCategorySubmenu(e.clientX, e.clientY)) });
+      }
+      items.push(
         { label: 'Create rule…', onClick: guard('createRule', () => OB.gmail.openCreateFilterForRow(row)) },
         { label: 'Reply with meeting', onClick: guard('replyWithMeeting', () => OB.replyWithMeeting.open({
             title: 'Re: ' + (info?.subject || ''),
@@ -40,7 +52,7 @@
         { label: 'Archive', onClick: guard('archive', () => OB.gmail.archive()) },
         { label: 'Delete', onClick: guard('delete', () => OB.gmail.del()) },
         { label: 'Snooze…', onClick: guard('snooze', () => OB.gmail.snooze()) }
-      ];
+      );
       OB.ui.buildMenu(items, e.clientX, e.clientY);
     } catch (err) {
       console.warn('[OB] context-menu: build failed', err);
@@ -58,6 +70,7 @@
   }
 
   function init() {
+    window.__OB.settings.get('categories').then((on) => { categoriesEnabled = !!on; });
     if (document.__obCtxBound) return; document.__obCtxBound = true;
     window.__OB.settings.get('contextMenu').then((on) => {
       if (on) document.addEventListener('contextmenu', onContextMenu, true);

@@ -69,10 +69,10 @@
       menu.appendChild(row);
     }
     root.appendChild(menu);
-    // Reposition if off-screen
+    // Reposition if off-screen; clamp so it can't render off the left/top edge either.
     const r = menu.getBoundingClientRect();
-    if (r.right > innerWidth) menu.style.left = (x - r.width) + 'px';
-    if (r.bottom > innerHeight) menu.style.top = (y - r.height) + 'px';
+    if (r.right > innerWidth) menu.style.left = Math.max(4, x - r.width) + 'px';
+    if (r.bottom > innerHeight) menu.style.top = Math.max(4, y - r.height) + 'px';
     // Idempotent: safe to call more than once (e.g. once from an outside-click/Escape and again
     // from the next buildMenu() call cleaning up a stale reference) — menu.remove()/
     // removeEventListener are no-ops when already removed/detached.

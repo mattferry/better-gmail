@@ -29,7 +29,7 @@
       label: '  '.repeat(node.depth) + (node.children.length ? '▸ ' : '') + node.name,
       onClick: () => moveTo(node.fullName)
     }));
-    OB.ui.buildMenu(items, x, y);
+    OB.ui.buildMenu(items.length ? items : [{ label: 'No folders yet', onClick: () => {} }], x, y);
   }
 
   function flatten(nodes, depth = 0, out = []) {
@@ -44,7 +44,8 @@
   }
 
   function init() {
-    window.__OB.settings.get('folderIllusionist').then((on) => { if (on) ensureButton(); });
+    window.__OB.settings.get('folderIllusionist').then((on) => { if (on) ensureButton(); })
+      .catch((e) => console.log('[OB] folder-illusionist: init failed', e));
   }
   const api = { init, openPickerAt };
   if (typeof window !== 'undefined') (window.__OB = window.__OB || {}).folderIllusionist = api;

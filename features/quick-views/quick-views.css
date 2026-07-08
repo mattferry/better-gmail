@@ -1,5 +1,5 @@
 /* Optional compact density: tightens row height when "Compact density" is enabled in options.
    Applied only when the root opts in, so it's a no-op with zero cost otherwise. */
-html[data-ob-compact] tr[role="row"] {
+html[data-ob-host="gmail"][data-ob-compact] tr[role="row"] {
   line-height: 1.1;
 }
