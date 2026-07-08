@@ -24,6 +24,7 @@
         "features/folder-illusionist/folder-illusionist.js",
         "features/context-menu/reply-with-meeting.js",
         "features/categories/categories.js",
+        "features/context-menu/context-menu.js",
         "core/bootstrap.js"
       ]
     },

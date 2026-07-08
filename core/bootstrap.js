@@ -7,6 +7,7 @@
   OB.router.onNavigate(() => {
     setTimeout(() => OB.selfTest.run(), 500);
     window.__OB.safe('folderIllusionist', () => window.__OB.folderIllusionist.init());
+    window.__OB.safe('contextMenu', () => window.__OB.contextMenu.init());
     // feature init calls are added in later tasks
   });
 })();
