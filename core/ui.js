@@ -88,6 +88,29 @@
     return menu;
   }
 
-  const api = { toast, buildMenu, host };
+  // Idempotently inject a child element identified by `id` into `parent`.
+  // If an element with that id already exists it is returned unchanged; otherwise
+  // build() creates it, it is tagged with the id, appended, and returned. Returns
+  // null if `parent` is falsy (e.g. the Gmail toolbar isn't in the DOM yet), so
+  // callers can safely no-op. Shared by the toolbar features (folder-illusionist,
+  // quick-views), which re-run their init on every navigate. Pairs with removeById
+  // so a feature turned off in settings can tear its element back down.
+  function ensureChild(parent, id, build) {
+    if (!parent) return null;
+    const existing = document.getElementById(id);
+    if (existing) return existing;
+    const el = build();
+    el.id = id;
+    parent.appendChild(el);
+    return el;
+  }
+
+  function removeById(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+    return !!el;
+  }
+
+  const api = { toast, buildMenu, host, ensureChild, removeById };
   if (typeof window !== 'undefined') (window.__OB = window.__OB || {}).ui = api;
 })();

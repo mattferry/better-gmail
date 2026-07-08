@@ -8,6 +8,10 @@
     { label: 'Attachments', q: 'has:attachment' }
   ];
 
+  // Live flag for the (bound-once) confirm-before-delete listener, refreshed from
+  // settings on init so an options toggle takes effect without a page reload.
+  let confirmDeleteOn = false;
+
   // Wrap a DOM event handler so a thrown error is caught and logged instead of
   // escaping into Gmail's own listeners (golden rule: handlers must not throw).
   function guard(name, fn) {
@@ -16,12 +20,8 @@
     };
   }
 
-  function ensureBar() {
-    const OB = window.__OB;
-    const toolbar = OB.gmail.getToolbar();
-    if (!toolbar || document.getElementById(BAR_ID)) return; // idempotent: guard by element id
+  function buildBar() {
     const bar = document.createElement('div');
-    bar.id = BAR_ID;
     bar.style.cssText = 'display:inline-flex;gap:6px;margin-left:8px;';
     for (const v of VIEWS) {
       const chip = document.createElement('button');
@@ -31,7 +31,7 @@
       chip.addEventListener('click', guard('chip:' + v.label, () => runSearch(v.q)));
       bar.appendChild(chip);
     }
-    toolbar.appendChild(bar);
+    return bar;
   }
 
   function runSearch(query) {
@@ -39,32 +39,46 @@
     location.hash = '#search/' + encodeURIComponent(query);
   }
 
-  // Bind once (see bootstrap.js — called once at load, not per-navigate).
+  function refreshConfirmDelete() {
+    return window.__OB.settings.get('confirmBeforeDelete')
+      .then((on) => { confirmDeleteOn = !!on; })
+      .catch((e) => console.log('[OB] quick-views: confirmDelete read failed', e));
+  }
+
+  // Bind once (see bootstrap.js — called once at load, not per-navigate). The
+  // listener itself is a no-op unless confirmDeleteOn, which init() keeps in sync
+  // with settings, so the toggle works live without rebinding.
   function initConfirmDelete() {
+    refreshConfirmDelete();
     if (document.__obDeleteConfirmBound) return;
     document.__obDeleteConfirmBound = true;
-    window.__OB.settings.get('confirmBeforeDelete').then((on) => {
-      if (!on) return;
-      document.addEventListener('click', guard('confirmDelete', (e) => {
-        // Intended exception to "no raw Gmail selectors": matches Gmail's own
-        // "Delete forever" control directly, per brief.
-        const t = e.target.closest && e.target.closest('[aria-label="Delete forever"]');
-        if (t && !confirm('Permanently delete? This cannot be undone.')) {
-          e.preventDefault(); e.stopPropagation();
-        }
-      }), true);
-    });
+    document.addEventListener('click', guard('confirmDelete', (e) => {
+      if (!confirmDeleteOn) return;
+      // Intended exception to "no raw Gmail selectors": matches Gmail's own
+      // "Delete forever" control directly, per brief.
+      const t = e.target.closest && e.target.closest('[aria-label="Delete forever"]');
+      if (t && !confirm('Permanently delete? This cannot be undone.')) {
+        e.preventDefault(); e.stopPropagation();
+      }
+    }), true);
   }
 
   function initDensity() {
-    window.__OB.settings.get('compactDensity').then((on) => {
+    return window.__OB.settings.get('compactDensity').then((on) => {
       document.documentElement.toggleAttribute('data-ob-compact', !!on);
     }).catch((e) => console.log('[OB] quick-views: density init failed', e));
   }
 
+  // Idempotent + reversible: injects the chip bar when enabled, removes it when
+  // disabled, and re-syncs the density + confirm-delete settings — so live
+  // toggles take effect without a page reload.
   function init() {
-    window.__OB.settings.get('quickViews').then((on) => { if (on) ensureBar(); });
+    const OB = window.__OB;
+    OB.settings.get('quickViews')
+      .then((on) => { if (on) OB.ui.ensureChild(OB.gmail.getToolbar(), BAR_ID, buildBar); else OB.ui.removeById(BAR_ID); })
+      .catch((e) => console.log('[OB] quick-views: init failed', e));
     initDensity();
+    refreshConfirmDelete();
   }
 
   const api = { init, initConfirmDelete };

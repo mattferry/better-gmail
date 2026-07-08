@@ -2,12 +2,8 @@
   'use strict';
   const BTN_ID = 'ob-move-to-folder';
 
-  function ensureButton() {
-    const OB = window.__OB;
-    const toolbar = OB.gmail.getToolbar();
-    if (!toolbar || document.getElementById(BTN_ID)) return;
+  function buildButton() {
     const btn = document.createElement('div');
-    btn.id = BTN_ID;
     btn.textContent = '📁 Move to Folder';
     btn.style.cssText = 'cursor:pointer;padding:6px 10px;margin:0 6px;border-radius:6px;' +
       'font:13px system-ui;display:inline-flex;align-items:center;background:rgba(0,0,0,.05);';
@@ -16,7 +12,7 @@
       const r = btn.getBoundingClientRect();
       openPickerAt(r.left, r.bottom + 4);
     });
-    toolbar.appendChild(btn);
+    return btn;
   }
 
   function openPickerAt(x, y) {
@@ -43,8 +39,12 @@
     OB.ui.toast(ok ? ('Moved to ' + fullName) : ('Could not move to ' + fullName));
   }
 
+  // Idempotent + reversible: injects the button when enabled, removes it when
+  // disabled — so a live settings toggle takes effect without a page reload.
   function init() {
-    window.__OB.settings.get('folderIllusionist').then((on) => { if (on) ensureButton(); })
+    const OB = window.__OB;
+    return OB.settings.get('folderIllusionist')
+      .then((on) => { if (on) OB.ui.ensureChild(OB.gmail.getToolbar(), BTN_ID, buildButton); else OB.ui.removeById(BTN_ID); })
       .catch((e) => console.log('[OB] folder-illusionist: init failed', e));
   }
   const api = { init, openPickerAt };
