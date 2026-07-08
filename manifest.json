@@ -22,6 +22,8 @@
         "features/dark-mode/dark-mode.js",
         "features/folder-illusionist/label-tree.js",
         "features/folder-illusionist/folder-illusionist.js",
+        "features/context-menu/reply-with-meeting.js",
+        "features/categories/categories.js",
         "core/bootstrap.js"
       ]
     },
