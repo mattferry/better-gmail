@@ -36,8 +36,10 @@
     if (contextual.length) {
       console.log('[OB] self-test: contextual selectors absent (expected unless that UI is open):', contextual);
     }
-    if (!critical.length) {
+    if (!broken.length) {
       console.log('[OB] self-test: all', results.length, 'selectors OK');
+    } else if (!critical.length) {
+      console.log('[OB] self-test: all critical selectors OK');
     }
     return results;
   }
