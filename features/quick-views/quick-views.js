@@ -41,6 +41,8 @@
 
   // Bind once (see bootstrap.js — called once at load, not per-navigate).
   function initConfirmDelete() {
+    if (document.__obDeleteConfirmBound) return;
+    document.__obDeleteConfirmBound = true;
     window.__OB.settings.get('confirmBeforeDelete').then((on) => {
       if (!on) return;
       document.addEventListener('click', guard('confirmDelete', (e) => {
@@ -57,7 +59,7 @@
   function initDensity() {
     window.__OB.settings.get('compactDensity').then((on) => {
       document.documentElement.toggleAttribute('data-ob-compact', !!on);
-    });
+    }).catch((e) => console.log('[OB] quick-views: density init failed', e));
   }
 
   function init() {
