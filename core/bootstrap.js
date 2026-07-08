@@ -25,7 +25,13 @@
 
   // Live feature toggles: apply option changes immediately instead of waiting for
   // a page reload. dark-mode wires its own onChange; this covers everything else.
+  // Gated to feature keys so unrelated sync changes (e.g. darkMode-only, which
+  // dark-mode already handles itself) don't trigger a redundant re-init/storage read.
   if (OB.settings && typeof OB.settings.onChange === 'function') {
-    OB.settings.onChange(() => refreshFeatures());
+    OB.settings.onChange((changes) => {
+      if (changes.folderIllusionist || changes.contextMenu || changes.quickViews || changes.compactDensity || changes.confirmBeforeDelete || changes.categories) {
+        refreshFeatures();
+      }
+    });
   }
 })();
