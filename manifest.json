@@ -19,8 +19,14 @@
         "core/calendar-adapter.js",
         "core/router.js",
         "core/self-test.js",
+        "features/dark-mode/dark-mode.js",
         "core/bootstrap.js"
       ]
+    },
+    {
+      "matches": ["https://mail.google.com/*", "https://calendar.google.com/*"],
+      "run_at": "document_start",
+      "css": ["features/dark-mode/dark-mode.css"]
     }
   ]
 }

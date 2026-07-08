@@ -1,0 +1,17 @@
+/* Applied only when the root opts in, so 'off' is a no-op with zero cost. */
+html[data-ob-dark="on"] .ii,           /* verify live: Gmail rendered message body container */
+html[data-ob-dark="on"] .a3s,          /* verify live: Gmail rendered message body */
+html[data-ob-dark="on"] div[role="listitem"] .ii {
+  filter: invert(1) hue-rotate(180deg);
+  background: #fff;                     /* give the invert a white base -> becomes dark */
+}
+/* Un-invert media so photos/logos look normal */
+html[data-ob-dark="on"] .ii img,
+html[data-ob-dark="on"] .a3s img,
+html[data-ob-dark="on"] .ii video {
+  filter: invert(1) hue-rotate(180deg);
+}
+/* Calendar: invert residual white surfaces only (native dark handles the rest). */
+html[data-ob-dark="on"][data-ob-host="calendar"] .residual-white-surface {
+  filter: invert(1) hue-rotate(180deg);
+}
