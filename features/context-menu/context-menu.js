@@ -25,7 +25,7 @@
     if (!row) return; // not on a message row -> let Gmail/browser handle it
     e.preventDefault();
     try {
-      // ensure the row is selected so actions target it
+      try { window.__OB.gmail.selectRow(row); } catch (e) { /* never break Gmail */ }
       const info = OB.gmail.getRowInfo(row);
       const items = [
         { label: 'Mark as unread', onClick: guard('markUnread', () => OB.gmail.markUnread([row])) },

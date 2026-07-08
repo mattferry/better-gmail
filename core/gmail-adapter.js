@@ -112,6 +112,18 @@
     return true;
   }
 
+  function selectRow(rowEl) {
+    if (!rowEl) return false;
+    // Clear any stale selection so toolbar actions can't hit the wrong message.
+    getSelectedRowEls().forEach((r) => {
+      if (r !== rowEl) { const cb = q(SELECTORS.rowCheckbox, r); if (cb) cb.click(); }
+    });
+    const cb = q(SELECTORS.rowCheckbox, rowEl);
+    if (!cb) return false;
+    if (cb.getAttribute('aria-checked') !== 'true') cb.click();
+    return true;
+  }
+
   function clickToolbar(sel) { const b = q(sel); if (!b) return false; b.click(); return true; }
   function markUnread(rowEls) { return clickToolbar(SELECTORS.markUnread); }
   function markRead(rowEls) { return clickToolbar(SELECTORS.markRead); }
@@ -136,6 +148,6 @@
 
   const api = { isReady, getToolbar, getLeftNavLabels, getSelectedRowEls, getRowInfo,
     getOpenThreadRecipients, clickMoveTo, applyLabel, markUnread, markRead,
-    openCreateFilterForRow, archive, del, snooze, closestRow, SELECTORS };
+    openCreateFilterForRow, archive, del, snooze, closestRow, selectRow, SELECTORS };
   if (typeof window !== 'undefined') (window.__OB = window.__OB || {}).gmail = api;
 })();
