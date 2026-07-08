@@ -20,6 +20,8 @@
         "core/router.js",
         "core/self-test.js",
         "features/dark-mode/dark-mode.js",
+        "features/folder-illusionist/label-tree.js",
+        "features/folder-illusionist/folder-illusionist.js",
         "core/bootstrap.js"
       ]
     },
