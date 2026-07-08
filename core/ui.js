@@ -44,7 +44,10 @@
     setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 200); }, 2600);
   }
 
+  let closeCurrentMenu = null;
+
   function buildMenu(items, x, y) {
+    if (closeCurrentMenu) { closeCurrentMenu(); closeCurrentMenu = null; }
     const root = host().shadowRoot;
     root.querySelectorAll('.ob-menu').forEach((m) => m.remove());
     const menu = document.createElement('div');
@@ -70,9 +73,18 @@
     const r = menu.getBoundingClientRect();
     if (r.right > innerWidth) menu.style.left = (x - r.width) + 'px';
     if (r.bottom > innerHeight) menu.style.top = (y - r.height) + 'px';
-    const close = () => { menu.remove(); document.removeEventListener('click', close); document.removeEventListener('keydown', onKey); };
+    // Idempotent: safe to call more than once (e.g. once from an outside-click/Escape and again
+    // from the next buildMenu() call cleaning up a stale reference) — menu.remove()/
+    // removeEventListener are no-ops when already removed/detached.
+    const close = () => {
+      menu.remove();
+      document.removeEventListener('click', close);
+      document.removeEventListener('keydown', onKey);
+      if (closeCurrentMenu === close) closeCurrentMenu = null;
+    };
     const onKey = (e) => { if (e.key === 'Escape') close(); };
     setTimeout(() => { document.addEventListener('click', close); document.addEventListener('keydown', onKey); }, 0);
+    closeCurrentMenu = close;
     return menu;
   }
 

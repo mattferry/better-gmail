@@ -12,7 +12,11 @@
   function start() {
     mo.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('hashchange', debounced);
-    fire(); // initial
+    // Defer the initial fire: content scripts run synchronously in manifest order, so router.js's
+    // start() runs before later scripts (e.g. bootstrap.js) have registered their onNavigate
+    // callbacks. A 0ms timer runs after the synchronous script-load phase completes, so by the
+    // time this fires, all content scripts have finished loading and registering.
+    setTimeout(fire, 0); // initial
   }
   if (typeof document !== 'undefined') {
     if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);

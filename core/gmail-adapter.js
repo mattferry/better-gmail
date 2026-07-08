@@ -28,6 +28,10 @@
     archiveButton: 'div[aria-label="Archive"], div[data-tooltip="Archive"]',
     deleteButton: 'div[aria-label="Delete"], div[data-tooltip="Delete"]',
     snoozeButton: 'div[aria-label="Snooze"], div[data-tooltip="Snooze"]',
+    // verify live — a list row's subject text
+    rowSubject: '[role="link"] span, .bog',
+    // fallback row matcher for closestRow when listRow doesn't match (e.g. a differently-scoped ancestor)
+    rowFallback: 'tr[role="row"], div[role="row"]',
 
     // --- Move-to / Labels native dropdown (opened by moveToButton / labelsButton) ---
     // UNVERIFIED — needs live tuning
@@ -64,8 +68,8 @@
 
   function getRowInfo(rowEl) {
     if (!rowEl) return null;
-    const from = (q('span[email]', rowEl) || {}).getAttribute?.('email') || null;
-    const subject = (rowEl.querySelector('[role="link"] span, .bog')?.textContent || '').trim() || null;
+    const from = (q(SELECTORS.recipientChip, rowEl) || {}).getAttribute?.('email') || null;
+    const subject = (q(SELECTORS.rowSubject, rowEl)?.textContent || '').trim() || null;
     return { subject, from, threadId: rowEl.getAttribute('data-legacy-thread-id') || null };
   }
 
@@ -108,25 +112,14 @@
     return true;
   }
 
-  function markUnread(rowEls) {
-    const btn = q(SELECTORS.markUnread);
-    if (!btn) return false;
-    btn.click();
-    return true;
-  }
-  function markRead(rowEls) {
-    const btn = q(SELECTORS.markRead);
-    if (!btn) return false;
-    btn.click();
-    return true;
-  }
-
   function clickToolbar(sel) { const b = q(sel); if (!b) return false; b.click(); return true; }
+  function markUnread(rowEls) { return clickToolbar(SELECTORS.markUnread); }
+  function markRead(rowEls) { return clickToolbar(SELECTORS.markRead); }
   function archive() { return clickToolbar(SELECTORS.archiveButton); }
   function del() { return clickToolbar(SELECTORS.deleteButton); }     // 'delete' is reserved
   function snooze() { return clickToolbar(SELECTORS.snoozeButton); }  // opens Gmail's native snooze picker
   function closestRow(el) {
-    return el && (el.closest(SELECTORS.listRow) || el.closest('tr[role="row"], div[role="row"]'));
+    return el && (el.closest(SELECTORS.listRow) || el.closest(SELECTORS.rowFallback));
   }
 
   function openCreateFilterForRow(rowEl) {
