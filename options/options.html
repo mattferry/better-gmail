@@ -1,1 +1,29 @@
-<!doctype html><meta charset="utf-8"><title>Outlook-Bridge</title>
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><link rel="stylesheet" href="options.css"></head>
+<body>
+  <h1>Better Gmail settings</h1>
+  <section>
+    <label>Dark mode
+      <select id="darkMode">
+        <option value="on">On</option>
+        <option value="off">Off</option>
+        <option value="system">Follow system</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="darkModeGmail"> Dark mode in Gmail</label>
+    <label><input type="checkbox" id="darkModeCalendar"> Dark mode in Calendar</label>
+  </section>
+  <section>
+    <label><input type="checkbox" id="folderIllusionist"> Move-to-Folder button</label>
+    <label><input type="checkbox" id="contextMenu"> Enhanced right-click menu</label>
+    <label><input type="checkbox" id="categories"> Color categories</label>
+    <label><input type="checkbox" id="quickViews"> Quick views</label>
+    <label><input type="checkbox" id="confirmBeforeDelete"> Confirm before permanent delete</label>
+    <label><input type="checkbox" id="compactDensity"> Compact density</label>
+  </section>
+  <p id="saved" hidden>Saved.</p>
+  <script src="../core/settings.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
