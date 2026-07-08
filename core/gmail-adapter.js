@@ -68,7 +68,7 @@
 
   function getRowInfo(rowEl) {
     if (!rowEl) return null;
-    const from = (q(SELECTORS.recipientChip, rowEl) || {}).getAttribute?.('email') || null;
+    const from = q(SELECTORS.recipientChip, rowEl)?.getAttribute('email') || null;
     const subject = (q(SELECTORS.rowSubject, rowEl)?.textContent || '').trim() || null;
     return { subject, from, threadId: rowEl.getAttribute('data-legacy-thread-id') || null };
   }
