@@ -39,7 +39,44 @@
     // UNVERIFIED — needs live tuning
     moveDropdownInput: 'div[role="listbox"] input, div.J-M input[type="text"]',
     // UNVERIFIED — needs live tuning
-    moveDropdownItem: 'div[role="listbox"] [role="option"], div.J-M .vY'
+    moveDropdownItem: 'div[role="listbox"] [role="option"], div.J-M .vY',
+
+    // --- Open message internals (attachments-top, outlook-reply) ---
+    // These came from the team's standalone extensions (in daily use at work when
+    // ported 2026-07-09), so they were live-verified in that context — not in this repo.
+    // an expanded message in a thread
+    messageContainer: 'div.adn.ads',
+    // broader fallback when messageContainer misses (walk up from a tray / rect math)
+    messageContainerFallback: '[role="listitem"], .adn',
+    // any element that can stand in for "a message" (outlook-reply rect comparisons)
+    messageAny: '.adn.ads, .adn, .gs',
+    // Gmail's own attachment tray (real attached files only — never signature images)
+    attachmentTray: '.aQH',
+    // the rendered message body
+    messageBody: '.a3s.aiL, .a3s',
+    // sender element carrying the email attribute (preferred form first)
+    senderChip: '.gD[email]',
+    senderChipFallback: '.go[email], [email]',
+    // message date element (title attr holds the full timestamp)
+    messageDate: '.g3',
+    // open thread subject
+    threadSubject: 'h2.hP',
+    // "To:" recipient chips inside a message header
+    toRecipientChips: '.hb .g2[email], .hb [email]',
+    // Gmail's "On ... wrote:" attribution line inside a reply draft
+    replyAttribution: '.gmail_quote_container .gmail_attr, .gmail_attr',
+    // "Show trimmed content" (three dots) button candidates
+    trimmedContent: ".ajR, .ajT, [aria-label*='Show trimmed content'], [data-tooltip*='Show trimmed content'], [role='button']",
+
+    // --- Compose (auto-capitalize, format-painter, table-inserter, outlook-reply) ---
+    // the editable draft body
+    composeBody: "div[contenteditable='true'][role='textbox']",
+    // formatting toolbar inside a compose window (table-inserter injects here)
+    composeToolbar: '.gU.Up',
+    // containers that can act as a compose root, nearest-ancestor-first via closest()
+    composeDialog: "div[role='dialog'], .M9, .AD, .aoI, .nH",
+    // the send-button bar of a compose window
+    composeSendBar: ".btC, .gU.Up, [role='toolbar']"
   };
 
   function q(sel, root) { return (root || document).querySelector(sel); }

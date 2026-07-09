@@ -1,12 +1,23 @@
 {
   "manifest_version": 3,
   "name": "Better Gmail",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Outlook-style Gmail + Calendar for orgs with NO Gmail API access: dark email bodies, Move-to-Folder, Outlook right-click menu — pure in-page, no OAuth.",
   "icons": { "16": "assets/icon16.png", "48": "assets/icon48.png", "128": "assets/icon128.png" },
-  "permissions": ["storage"],
+  "permissions": ["storage", "contextMenus"],
   "host_permissions": ["https://mail.google.com/*", "https://calendar.google.com/*"],
   "options_page": "options/options.html",
+  "background": { "service_worker": "core/background.js" },
+  "commands": {
+    "format-copy": {
+      "suggested_key": { "default": "Alt+C" },
+      "description": "Format painter: copy format"
+    },
+    "format-paste": {
+      "suggested_key": { "default": "Alt+V" },
+      "description": "Format painter: paste format"
+    }
+  },
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*", "https://calendar.google.com/*"],
@@ -26,13 +37,29 @@
         "features/categories/categories.js",
         "features/context-menu/context-menu.js",
         "features/quick-views/quick-views.js",
+        "features/attachments-top/attachments-match.js",
+        "features/attachments-top/attachments-top.js",
+        "features/auto-capitalize/dictionaries/dictionary.js",
+        "features/auto-capitalize/dictionaries/dictionary-locations.js",
+        "features/auto-capitalize/dictionaries/dictionary-enterprise.js",
+        "features/auto-capitalize/dictionaries/dictionary-acronyms.js",
+        "features/auto-capitalize/dictionaries/dictionary-custom.js",
+        "features/auto-capitalize/capitalizer-engine.js",
+        "features/auto-capitalize/auto-capitalize.js",
+        "features/format-painter/format-painter.js",
+        "features/table-inserter/table-inserter.js",
+        "features/outlook-reply/outlook-reply.js",
         "core/bootstrap.js"
       ]
     },
     {
       "matches": ["https://mail.google.com/*", "https://calendar.google.com/*"],
       "run_at": "document_start",
-      "css": ["features/dark-mode/dark-mode.css", "features/quick-views/quick-views.css"]
+      "css": [
+        "features/dark-mode/dark-mode.css",
+        "features/quick-views/quick-views.css",
+        "features/attachments-top/attachments-top.css"
+      ]
     }
   ]
 }

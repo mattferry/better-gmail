@@ -1,0 +1,19 @@
+/* Attachments-on-top bar (ported from Narendra S.'s Gmail Attachments on Top). */
+
+.ob-attachments-bar {
+  display: block;
+  margin: 4px 0 12px 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  background: rgba(60, 120, 255, 0.06);
+}
+
+.ob-attachments-bar-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.65;
+  margin-bottom: 6px;
+}

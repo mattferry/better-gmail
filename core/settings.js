@@ -11,6 +11,13 @@
     quickViews: true,
     confirmBeforeDelete: true,
     compactDensity: false,
+    // Team extension pack (ported from Mehul Siddhpura's / Narendra S.'s standalone extensions)
+    attachmentsTop: true,
+    autoCapitalize: true,
+    formatPainter: true,
+    tableInserter: true,
+    outlookReply: true,
+    outlookReplyButton: false,
   };
 
   function mergeDefaults(stored) {
@@ -42,5 +49,7 @@
 
   const api = { DEFAULTS, mergeDefaults, get, getAll, set, onChange };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  if (typeof window !== 'undefined') (window.__OB = window.__OB || {}).settings = api;
+  // globalThis (not window) so the same file serves the content scripts, the
+  // options page, AND core/background.js (a service worker has no window).
+  if (typeof globalThis !== 'undefined') (globalThis.__OB = globalThis.__OB || {}).settings = api;
 })();

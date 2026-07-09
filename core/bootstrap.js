@@ -13,6 +13,11 @@
     OB.safe('folderIllusionist', () => OB.folderIllusionist.init());
     OB.safe('contextMenu', () => OB.contextMenu.init());
     OB.safe('quickViews', () => OB.quickViews.init());
+    OB.safe('attachmentsTop', () => OB.attachmentsTop.init());
+    OB.safe('autoCapitalize', () => OB.autoCapitalize.init());
+    OB.safe('formatPainter', () => OB.formatPainter.init());
+    OB.safe('tableInserter', () => OB.tableInserter.init());
+    OB.safe('outlookReply', () => OB.outlookReply.init());
   }
 
   OB.safe('darkMode', () => OB.darkMode.init());
@@ -29,7 +34,8 @@
   // dark-mode already handles itself) don't trigger a redundant re-init/storage read.
   if (OB.settings && typeof OB.settings.onChange === 'function') {
     OB.settings.onChange((changes) => {
-      if (changes.folderIllusionist || changes.contextMenu || changes.quickViews || changes.compactDensity || changes.confirmBeforeDelete || changes.categories) {
+      if (changes.folderIllusionist || changes.contextMenu || changes.quickViews || changes.compactDensity || changes.confirmBeforeDelete || changes.categories ||
+          changes.attachmentsTop || changes.autoCapitalize || changes.formatPainter || changes.tableInserter || changes.outlookReply || changes.outlookReplyButton) {
         refreshFeatures();
       }
     });

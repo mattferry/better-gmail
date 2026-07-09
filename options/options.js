@@ -1,6 +1,8 @@
 const S = window.__OB.settings;                 // dual-export gives us this in the options page
 const CHECKS = ['darkModeGmail','darkModeCalendar','folderIllusionist','contextMenu',
-  'categories','quickViews','confirmBeforeDelete','compactDensity'];
+  'categories','quickViews','confirmBeforeDelete','compactDensity',
+  'attachmentsTop','autoCapitalize','formatPainter','tableInserter',
+  'outlookReply','outlookReplyButton'];
 
 function load() {
   S.getAll().then((s) => {
