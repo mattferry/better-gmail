@@ -11,7 +11,7 @@
     quickViews: true,
     confirmBeforeDelete: true,
     compactDensity: false,
-    // Team extension pack (ported from Mehul Siddhpura's / Narendra S.'s standalone extensions)
+    // Team extension pack (ported from Mehul S.'s / Narendra S.'s standalone extensions)
     attachmentsTop: true,
     autoCapitalize: true,
     formatPainter: true,

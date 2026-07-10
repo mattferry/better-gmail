@@ -4,7 +4,7 @@
   // Pure text engine for auto-capitalize (no DOM) — sentence capitalization,
   // standalone "i", contractions, dictionary proper-nouns/acronyms, and multi-word
   // phrase matching, with the caret-aware "don't touch the word still being typed"
-  // rule. Ported from Mehul Siddhpura's "Gmail Auto Capitalizer" v4 block engine;
+  // rule. Ported from Mehul S.'s "Gmail Auto Capitalizer" v4 block engine;
   // extracted here so it is unit-testable under node (see test/).
 
   const BLOCKED_WORDS = new Set([

@@ -11,7 +11,7 @@
   // optional compose-toolbar button (outlookReplyButton setting) converts a
   // reply manually.
   //
-  // Ported from Mehul Siddhpura's "Gmail Outlook Reply Header" v1.1.
+  // Ported from Mehul S.'s "Gmail Outlook Reply Header" v1.1.
 
   const MARKER = '-----Original Message-----';
   const BUTTON_CLASS = 'ob-outlook-reply-btn';

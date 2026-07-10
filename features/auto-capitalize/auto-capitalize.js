@@ -7,7 +7,7 @@
   // Users extend the dictionary via right-click → "Add to Auto Capitalizer
   // dictionary" (wired in core/background.js) or Ctrl+Shift+A in a draft.
   //
-  // Ported from Mehul Siddhpura's "Gmail Auto Capitalizer" v4. The pure text
+  // Ported from Mehul S.'s "Gmail Auto Capitalizer" v4. The pure text
   // engine lives in capitalizer-engine.js; this file is the DOM/caret glue.
 
   const SKIP_SELECTORS = ".gmail_signature,.gmail_quote,[aria-label='Signature'],blockquote,code,pre";

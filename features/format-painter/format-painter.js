@@ -7,7 +7,7 @@
   // core/background.js, which messages this module. The copied style persists in
   // chrome.storage.local so it survives navigation and works across tabs.
   //
-  // Ported from Mehul Siddhpura's "Local Gmail Format Painter" v1.1.
+  // Ported from Mehul S.'s "Local Gmail Format Painter" v1.1.
 
   const STORAGE_KEY = 'obFormatPainter';
 

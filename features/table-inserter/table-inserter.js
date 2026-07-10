@@ -6,7 +6,7 @@
   // gridline colors, sizing controls, snapshot undo/redo, and a smart paste that
   // spreads tab-separated (spreadsheet) data across cells.
   //
-  // Ported from Mehul Siddhpura's "Gmail Table Inserter" v1.1 nearly verbatim —
+  // Ported from Mehul S.'s "Gmail Table Inserter" v1.1 nearly verbatim —
   // the inserted table keeps his `gmail-custom-table` class so tables made with
   // the original standalone extension stay editable here. Wrapped in the
   // Better Gmail feature contract: bind-once document listeners gated on a live

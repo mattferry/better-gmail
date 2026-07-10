@@ -13,8 +13,8 @@
   // filename matches, auto-generated-name patterns — see attachments-match.js);
   // matches are left where Gmail put them.
   //
-  // Ported from Narendra S.'s "Gmail Attachments on Top" rework of Mehul
-  // Siddhpura's original extension.
+  // Ported from Narendra S.'s "Gmail Attachments on Top" rework of Mehul S.'s
+  // original extension.
 
   const BAR_CLASS = 'ob-attachments-bar';
   const LABEL_CLASS = 'ob-attachments-bar-label';

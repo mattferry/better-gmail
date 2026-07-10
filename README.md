@@ -51,7 +51,7 @@ see [Maintenance](#maintenance).
   images are excluded: Gmail's own attachment tray never contains most of them, and the
   Outlook edge case (signature logos attached as real files) is caught by cross-referencing
   tray items against the images rendered inline in the body. *(Rework by Narendra S. of
-  Mehul Siddhpura's original.)*
+  Mehul S.'s original.)*
 - **Folder Illusionist** — a **Move to Folder** button that shows your labels as a folder
   tree and, on click, applies the label *and* archives the mail in one action — mimicking
   Outlook's "move" instead of Gmail's "label but leave it in the inbox."
@@ -68,20 +68,20 @@ see [Maintenance](#maintenance).
 - **Outlook-style reply headers** — when you hit Reply, replaces Gmail's one-line
   "On … wrote:" attribution with the classic Outlook block: `-----Original Message-----`
   plus From / Sent / To / Subject. Automatic on reply; an optional toolbar button converts
-  a reply manually. *(By Mehul Siddhpura.)*
+  a reply manually. *(By Mehul S.)*
 - **Auto-capitalize** — fixes capitalization live while you type a draft: sentence starts,
   standalone "i", common contractions (`dont` → `don't`), and proper nouns / acronyms /
   multi-word phrases from offline dictionaries (products, places, names, enterprise terms).
   Add your own words via right-click → *Add to Auto Capitalizer dictionary* or
   **Ctrl+Shift+A** in a draft. Never touches signatures, quotes, or code blocks.
-  *(By Mehul Siddhpura.)*
+  *(By Mehul S.)*
 - **Format painter** — copy the formatting of selected text and paste it onto another
   selection, Outlook style: right-click → *Copy format* / *Paste format*, or **Alt+C** /
-  **Alt+V**. *(By Mehul Siddhpura.)*
+  **Alt+V**. *(By Mehul S.)*
 - **Table tools** — Gmail compose has no real table support; this adds it: a grid picker to
   insert a table, add/delete rows and columns, cell & gridline colors from the native
   Google palette, column/row sizing, undo/redo, and a smart paste that spreads
-  tab-separated (spreadsheet) data across cells. *(By Mehul Siddhpura.)*
+  tab-separated (spreadsheet) data across cells. *(By Mehul S.)*
 
 Every feature has an on/off switch on the options page, applied live — no reload needed.
 
