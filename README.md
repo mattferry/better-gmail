@@ -45,7 +45,7 @@ see [Maintenance](#maintenance).
   in its own dark theme), the way Outlook does it. Photos and logos are un-inverted so they
   still look right. Calendar relies on Google's own native dark theme; Better Gmail's
   cleanup of any residual white surfaces there is best-effort and pending a verified
-  selector (see [Maintenance](#maintenance)). *(Featureset by Yancy P.)*
+  selector (see [Maintenance](#maintenance)). *(Gmail dark-mode featureset by Yancy P.)*
 - **Attachments on top** — moves a message's real attachments into a bar right below the
   subject, above the body, like Outlook — instead of buried at the bottom. Signature/logo
   images are excluded: Gmail's own attachment tray never contains most of them, and the
@@ -141,9 +141,8 @@ intact:
 - **Narendra S.** — reworked *Gmail Attachments on Top* with the signature-image
   cross-reference heuristic and safety fallback; his version is the implementation that
   ships here.
-- **Yancy P.** — came up with the full dark-mode featureset: real dark email bodies with
-  photos/logos left un-inverted, plus the Calendar cleanup — the spec Better Gmail's dark
-  mode implements.
+- **Yancy P.** — came up with the dark-mode featureset: real dark email bodies with
+  photos/logos left un-inverted — the spec Better Gmail's dark mode implements.
 
 The merged versions are adapted to Better Gmail's feature contract (central selector maps,
 live per-feature toggles, shared toast UI) — any bugs introduced in the porting are ours,
