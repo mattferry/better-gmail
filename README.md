@@ -134,7 +134,7 @@ The composing/reply feature pack was born as standalone extensions written by co
 during the same Outlook→Gmail migration, and merged into Better Gmail with their features
 intact:
 
-- **Mehul Siddhpura** — authored the original standalone extensions this pack is ported
+- **Mehul S.** — authored the original standalone extensions this pack is ported
   from: *Gmail Auto Capitalizer* (including its offline dictionaries, kept verbatim),
   *Local Gmail Format Painter*, *Gmail Table Inserter*, *Gmail Outlook Reply Header*, and
   the first version of *Gmail Attachments on Top*.
