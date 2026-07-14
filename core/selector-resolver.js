@@ -14,6 +14,17 @@
   //                rather than exact markup. On success the live node is turned
   //                back into a selector and cached for tier 2.
   //
+  // SAFETY MODEL (hardened after QA on the first version): a role's verify()
+  // gate applies to EVERY tier — static matches, learned-cache hits, and probe
+  // results alike — so a lookalike (e.g. a row-hover "Delete" icon with the same
+  // aria-label as the toolbar button) is rejected no matter which tier produced
+  // it. Destructive button roles additionally require the element to live inside
+  // the toolbar. Probes only ever return VISIBLE elements. learn() persists a
+  // selector only when it passes verify() AND round-trips to the same element,
+  // and a learned selector that matches only verify-failing elements is EVICTED.
+  // Diagnostics (self-test's report()) run with learning disabled, so a weird
+  // transient UI state can never poison the cache.
+  //
   // core/self-test.js reports which tier satisfied each role, so selector drift
   // is visible in the console instead of silently breaking features.
 
@@ -39,7 +50,9 @@
     return (el.getAttribute && (el.getAttribute('aria-label') || el.getAttribute('data-tooltip'))) || '';
   }
 
-  // Turn a live element back into a reusable selector (most stable attribute first).
+  // Turn a live element back into a reusable selector (most stable attribute
+  // first). Class tokens are CSS-escaped so a hostile/odd class can't produce a
+  // selector that throws.
   function deriveSelector(el) {
     if (!el || !el.tagName) return null;
     const tag = el.tagName.toLowerCase();
@@ -49,50 +62,70 @@
     if (tip) return tag + '[data-tooltip=' + JSON.stringify(tip) + ']';
     const gh = el.getAttribute('gh');
     if (gh) return tag + '[gh=' + JSON.stringify(gh) + ']';
-    const cls = el.className && typeof el.className === 'string' ? el.className.trim().split(/\s+/).slice(0, 3) : [];
+    const esc = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape : (s) => s;
+    const cls = el.className && typeof el.className === 'string' ? el.className.trim().split(/\s+/).slice(0, 3).map(esc) : [];
     return cls.length ? tag + '.' + cls.join('.') : null;
   }
 
   // --- probe building blocks (DOM) ---
 
-  // Find a control by its accessible-label meaning. Scans buttons and Gmail's
-  // div-buttons; prefers a visible match so hidden template copies don't win.
+  // Find a control by its accessible-label meaning. VISIBLE matches only — a
+  // hidden lookalike (row-hover action icons, template copies) must never be
+  // returned, let alone learned.
   function findByLabel(patterns, root) {
     const candidates = qa('[aria-label], [data-tooltip]', root);
-    const hits = candidates.filter((el) => labelMatches(labelOf(el), patterns));
-    return hits.find(isVisible) || hits[0] || null;
+    return candidates.find((el) => isVisible(el) && labelMatches(labelOf(el), patterns)) || null;
+  }
+
+  // Gmail's toolbar action buttons live in the list toolbar; the same labels
+  // also appear on per-row hover icons. Containment in the toolbar is what
+  // separates the real button from a lookalike.
+  function inToolbar(el) {
+    return !!(el && el.closest && el.closest('[gh="mtb"], [role="toolbar"]'));
   }
 
   // Smallest visible container holding every visible [role="menuitem"] — how we
   // find an open native dropdown without knowing Gmail's container classes.
+  // The climb is bounded by `root`/document.body; reaching the bound means the
+  // items aren't one coherent menu, so return null rather than a giant ancestor.
   function findOpenMenuContainer(root) {
-    const items = qa('[role="menuitem"], [role="option"]', root).filter(isVisible);
+    const scope = root || document;
+    const items = qa('[role="menuitem"], [role="option"]', scope).filter(isVisible);
     if (!items.length) return null;
+    const bound = scope === document ? document.body : scope;
     let c = items[0].parentElement;
-    while (c && c !== document.body && !items.every((m) => c.contains(m))) c = c.parentElement;
-    return c && c !== document.body ? c : null;
+    while (c && c !== bound && !items.every((m) => c.contains(m))) c = c.parentElement;
+    return c && c !== bound && c !== document.body ? c : null;
   }
 
-  // Smallest ancestor of the first download link containing all download links —
-  // a semantic stand-in for Gmail's attachment tray.
+  // Smallest ancestor (strictly inside root) of the first download link that
+  // contains all of root's download links — a semantic stand-in for Gmail's
+  // attachment tray. Returns null when the only common ancestor is root itself
+  // ("the whole message" is never a tray) and null for a SINGLE download link:
+  // with one sample the containment walk stops inside the attachment card
+  // itself, and relocating a card's internals would dismember it (QA finding).
   function findAttachmentTray(root) {
-    const dls = qa('a[download]', root);
-    if (!dls.length) return null;
+    const scope = root || document;
+    const dls = qa('a[download]', scope);
+    if (dls.length < 2) return null;
     let c = dls[0].parentElement;
-    while (c && c !== root && !dls.every((d) => c.contains(d))) c = c.parentElement;
-    return c === root ? dls[0].parentElement : c;
+    while (c && c !== scope && !dls.every((d) => c.contains(d))) c = c.parentElement;
+    return c && c !== scope && c !== document.body ? c : null;
   }
 
   // --- role registry ---
-  // pickVisible: prefer a visible match among static/learned hits.
-  // verify: sanity-check a learned-selector hit before trusting the cache.
+  // pickVisible: prefer a visible match among candidate-selector hits.
+  // requireVisible: only a visible match will do.
+  // verify: gate applied to EVERY tier's candidate before it is returned.
 
   const ROLES = {
     toolbar: {
       static: ['div[gh="mtb"]'],
       probe(root) {
         const anchor = findByLabel([/^archive$/i, /^refresh$/i, /^report spam$/i], root);
-        return anchor ? anchor.closest('[gh], [role="toolbar"]') : null;
+        // gh="mtb" specifically — a bare [gh] would also match e.g. the thread
+        // list (gh="tl") and poison everything that injects into the toolbar.
+        return anchor ? anchor.closest('[gh="mtb"], [role="toolbar"]') : null;
       }
     },
     searchInput: {
@@ -108,46 +141,50 @@
       verify(el) { return labelMatches(labelOf(el), [/search options/i]); }
     },
     moveToButton: {
+      // EXACT match only — a loose /move to/i also matches Trash/Spam's
+      // "Move to Inbox" toolbar button, and learning that would turn every
+      // Move-to click into a real mailbox mutation (QA finding).
       static: ['div[aria-label="Move to"], div[data-tooltip="Move to"]'],
       pickVisible: true,
-      probe(root) { return findByLabel([/^move to$/i, /move to/i], root); },
-      verify(el) { return labelMatches(labelOf(el), [/move to/i]); }
+      probe(root) { return findByLabel([/^move to$/i], root); },
+      verify(el) { return labelMatches(labelOf(el), [/^move to$/i]) && inToolbar(el); }
     },
     labelsButton: {
       static: ['div[aria-label="Labels"], div[data-tooltip="Labels"]'],
       pickVisible: true,
-      probe(root) { return findByLabel([/^labels?$/i, /label as/i], root); },
-      verify(el) { return labelMatches(labelOf(el), [/^labels?$/i, /label as/i]); }
+      probe(root) { return findByLabel([/^labels?$/i, /^label as$/i], root); },
+      verify(el) { return labelMatches(labelOf(el), [/^labels?$/i, /^label as$/i]) && inToolbar(el); }
     },
     markUnread: {
       static: ['div[aria-label="Mark as unread"], div[data-tooltip="Mark as unread"]'],
       pickVisible: true,
       probe(root) { return findByLabel([/mark as unread/i], root); },
-      verify(el) { return labelMatches(labelOf(el), [/mark as unread/i]); }
+      verify(el) { return labelMatches(labelOf(el), [/mark as unread/i]) && inToolbar(el); }
     },
     markRead: {
       static: ['div[aria-label="Mark as read"], div[data-tooltip="Mark as read"]'],
       pickVisible: true,
       probe(root) { return findByLabel([/mark as read/i], root); },
-      verify(el) { return labelMatches(labelOf(el), [/mark as read/i]); }
+      verify(el) { return labelMatches(labelOf(el), [/mark as read/i]) && inToolbar(el); }
     },
     archiveButton: {
       static: ['div[aria-label="Archive"], div[data-tooltip="Archive"]'],
       pickVisible: true,
       probe(root) { return findByLabel([/^archive$/i], root); },
-      verify(el) { return labelMatches(labelOf(el), [/^archive$/i]); }
+      verify(el) { return labelMatches(labelOf(el), [/^archive$/i]) && inToolbar(el); }
     },
     deleteButton: {
       static: ['div[aria-label="Delete"], div[data-tooltip="Delete"]'],
       pickVisible: true,
       probe(root) { return findByLabel([/^delete$/i], root); },
-      verify(el) { return labelMatches(labelOf(el), [/^delete$/i]); }
+      verify(el) { return labelMatches(labelOf(el), [/^delete$/i]) && inToolbar(el); }
     },
     snoozeButton: {
+      // Exact — /^snooze/i would also match the left-nav "Snoozed" link.
       static: ['div[aria-label="Snooze"], div[data-tooltip="Snooze"]'],
       pickVisible: true,
-      probe(root) { return findByLabel([/^snooze/i], root); },
-      verify(el) { return labelMatches(labelOf(el), [/^snooze/i]); }
+      probe(root) { return findByLabel([/^snooze$/i], root); },
+      verify(el) { return labelMatches(labelOf(el), [/^snooze$/i]) && inToolbar(el); }
     },
     // Native Move-to / Labels dropdown, once opened. `.J-M` is the current
     // container class (live-verified 2026-07-14, several exist — only one
@@ -156,11 +193,13 @@
       static: ['div.J-M'],
       pickVisible: true,
       requireVisible: true, // an invisible dropdown container is useless
-      probe(root) { return findOpenMenuContainer(root); }
+      probe(root) { return findOpenMenuContainer(root); },
+      verify(el) { return isVisible(el) && !!el.querySelector('[role="menuitem"], [role="option"]'); }
     },
     attachmentTray: {
       static: ['.aQH'],
-      probe(root) { return findAttachmentTray(root || document); }
+      probe(root) { return findAttachmentTray(root); },
+      verify(el) { return !!el.querySelector('a[download], [download]'); }
     }
   };
 
@@ -180,61 +219,94 @@
     });
   }
 
+  // Merge-on-write: another tab (or this tab pre-hydration) may have learned
+  // roles we don't hold in memory — never clobber them with a partial snapshot.
   function persist() {
     if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      const out = {};
-      Object.keys(learned).forEach((role) => { out[role] = { selector: learned[role], learnedAt: Date.now() }; });
-      chrome.storage.local.set({ [STORAGE_KEY]: out }, () => { void (chrome.runtime && chrome.runtime.lastError); });
+      chrome.storage.local.get([STORAGE_KEY], (result) => {
+        if (chrome.runtime && chrome.runtime.lastError) return;
+        const out = (result && result[STORAGE_KEY]) || {};
+        Object.keys(learned).forEach((role) => {
+          if (learned[role]) out[role] = { selector: learned[role], learnedAt: Date.now() };
+          else delete out[role]; // evicted
+        });
+        chrome.storage.local.set({ [STORAGE_KEY]: out }, () => { void (chrome.runtime && chrome.runtime.lastError); });
+      });
     }, 500);
   }
 
-  function learn(role, el) {
+  function learn(role, el, def) {
     const sel = deriveSelector(el);
-    if (sel && learned[role] !== sel) {
-      learned[role] = sel;
-      console.log('[OB] resolver: learned selector for "' + role + '":', sel);
-      persist();
-    }
+    if (!sel || learned[role] === sel) return;
+    // Only persist a selector that (a) passes the role's own verify gate and
+    // (b) round-trips: its first document match is the element we probed. A
+    // non-unique selector (e.g. a label shared with row icons) is not cached.
+    if (def && def.verify && !def.verify(el)) return;
+    if (qa(sel, document)[0] !== el) return;
+    learned[role] = sel;
+    console.log('[OB] resolver: learned selector for "' + role + '":', sel);
+    persist();
+  }
+
+  function evict(role) {
+    if (!learned[role]) return;
+    console.log('[OB] resolver: evicting poisoned learned selector for "' + role + '":', learned[role]);
+    learned[role] = null;
+    persist();
   }
 
   // --- resolution ---
 
   const lastTier = {};  // role -> 'static' | 'learned' | 'probe' | 'miss' (for self-test)
 
+  // Order candidates by the role's visibility rule, then return the first that
+  // passes verify. verify applies to every tier (see SAFETY MODEL above).
   function pick(els, def) {
     if (!els.length) return null;
-    if (def.requireVisible) return els.find(isVisible) || null;
-    if (def.pickVisible) return els.find(isVisible) || els[0];
-    return els[0];
+    let ordered = els;
+    if (def.requireVisible) ordered = els.filter(isVisible);
+    else if (def.pickVisible) ordered = els.filter(isVisible).concat(els.filter((e) => !isVisible(e)));
+    return ordered.find((el) => !def.verify || def.verify(el)) || null;
   }
 
-  function resolve(role, root) {
+  function resolve(role, root, opts) {
     const def = ROLES[role];
     if (!def) return null;
+    const noLearn = !!(opts && opts.noLearn);
+
     for (const sel of def.static) {
       const el = pick(qa(sel, root), def);
       if (el) { lastTier[role] = 'static'; return el; }
     }
+
     if (learned[role]) {
-      const el = pick(qa(learned[role], root), def);
-      if (el && (!def.verify || def.verify(el))) { lastTier[role] = 'learned'; return el; }
+      const hits = qa(learned[role], root);
+      const el = pick(hits, def);
+      if (el) { lastTier[role] = 'learned'; return el; }
+      // The cached selector matches elements but every one fails verify: that is
+      // a poisoned entry (e.g. learned from a lookalike) — evict so the probe
+      // can re-learn. No matches at all just means the UI isn't open (keep it).
+      if (hits.length && def.verify && !noLearn) evict(role);
     }
+
     const el = def.probe ? def.probe(root || document) : null;
-    if (el) {
+    if (el && (!def.verify || def.verify(el))) {
       lastTier[role] = 'probe';
-      learn(role, el);
+      if (!noLearn) learn(role, el, def);
       return el;
     }
     lastTier[role] = 'miss';
     return null;
   }
 
-  // Diagnostic snapshot for self-test: try every role once, report the tier.
+  // Diagnostic snapshot for self-test: try every role once and report the tier.
+  // Runs with learning DISABLED — a diagnostic must never write the cache from
+  // whatever transient UI state a navigation left behind.
   function report(root) {
     return Object.keys(ROLES).map((role) => {
-      const el = resolve(role, root);
+      const el = resolve(role, root, { noLearn: true });
       return { role, tier: lastTier[role], ok: !!el };
     });
   }

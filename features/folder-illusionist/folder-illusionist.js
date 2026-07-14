@@ -55,6 +55,7 @@
   // Idempotent + reversible: injects the button when enabled, removes it when
   // disabled — so a live settings toggle takes effect without a page reload.
   function init() {
+    if (location.host !== 'mail.google.com') return; // never inject into Calendar
     const OB = window.__OB;
     return OB.settings.get('folderIllusionist')
       .then((on) => { if (on) OB.ui.ensureChild(OB.gmail.getToolbarInsertionPoint(), BTN_ID, buildButton); else OB.ui.removeById(BTN_ID); })

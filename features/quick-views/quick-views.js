@@ -82,6 +82,7 @@
   // disabled, and re-syncs the density + confirm-delete settings — so live
   // toggles take effect without a page reload.
   function init() {
+    if (location.host !== 'mail.google.com') return; // never inject into Calendar
     const OB = window.__OB;
     OB.settings.get('quickViews')
       .then((on) => { if (on) OB.ui.ensureChild(OB.gmail.getToolbarInsertionPoint(), BAR_ID, buildBar); else OB.ui.removeById(BAR_ID); })

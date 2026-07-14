@@ -98,7 +98,14 @@
   function ensureChild(parent, id, build) {
     if (!parent) return null;
     const existing = document.getElementById(id);
-    if (existing) return existing;
+    if (existing) {
+      // Re-home when the intended parent changed since injection — e.g. an
+      // early init fell back to a coarser container before Gmail finished
+      // rendering the real one. Without this, the first placement sticks
+      // forever because the id already exists (QA finding).
+      if (existing.parentElement !== parent) parent.appendChild(existing);
+      return existing;
+    }
     const el = build();
     el.id = id;
     parent.appendChild(el);

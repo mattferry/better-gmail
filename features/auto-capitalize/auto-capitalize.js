@@ -107,11 +107,12 @@
       }
     });
 
-    // Rewriting the caret's own node resets the selection — restore it there,
-    // shifted by that node's length change (e.g. "dont" -> "don't" is +1).
-    if (caretNodeChanged) {
+    // Rewriting the caret's own node resets the selection — restore it at the
+    // exact tracked position (the engine maps the caret through each token, so
+    // a fix AFTER the caret no longer drifts it).
+    if (caretNodeChanged && typeof result.caretOffset === 'number') {
       const node = nodes[caretNodeIndex];
-      const offset = Math.max(0, Math.min(caretOffsetInNode + result.caretDelta, node.nodeValue.length));
+      const offset = Math.max(0, Math.min(result.caretOffset, node.nodeValue.length));
       const r = document.createRange();
       r.setStart(node, offset);
       r.collapse(true);

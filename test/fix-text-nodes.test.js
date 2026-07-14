@@ -32,17 +32,43 @@ test('caret guard protects the word still being typed in the caret node', () => 
   assert.strictEqual(r.newValues[0], 'Hi googl'); // "googl" left alone, "hi" fixed
 });
 
-test('no caret guard on non-caret nodes', () => {
+test('no caret guard on non-caret nodes (word boundary at the seam)', () => {
   const c = createCapitalizer(['Google']);
-  const r = c.fixTextNodes(['hi google', 'x'], 1, 1); // caret in node 1
-  assert.strictEqual(r.newValues[0], 'Hi Google');
+  // trailing space on node 0 -> "google" is a whole word, not a fragment
+  const r = c.fixTextNodes(['hi google ', 'x'], 1, 1); // caret in node 1
+  assert.strictEqual(r.newValues[0], 'Hi Google ');
 });
 
-test('caretDelta reflects a contraction expansion in the caret node', () => {
+test('caret moves with a contraction expansion before it', () => {
   const c = createCapitalizer([]);
   const r = c.fixTextNodes(['im here'], 0, 7); // caret at end: "here" skipped, im -> I'm (+1)
   assert.strictEqual(r.newValues[0], "I'm here");
-  assert.strictEqual(r.caretDelta, 1);
+  assert.strictEqual(r.caretOffset, 8); // end of "I'm here"
+});
+
+test('caret does NOT drift when the fix is after it (QA repro)', () => {
+  const c = createCapitalizer([]);
+  // caret after the comma (offset 6); "hello"->"Hello" is length-neutral,
+  // "im"->"I'm" (+1) happens after the caret and must not move it.
+  const r = c.fixTextNodes(['hello, im here'], 0, 6);
+  assert.strictEqual(r.newValues[0], "Hello, I'm here");
+  assert.strictEqual(r.caretOffset, 6);
+});
+
+test('word fragments straddling a node seam are never contraction-fixed (QA repro)', () => {
+  const c = createCapitalizer([]);
+  // "im" is the leading fragment of "important" split across nodes — the old
+  // behavior produced "I'mportant".
+  const r = c.fixTextNodes(['this is im', 'portant stuff '], 1, 14);
+  assert.strictEqual(r.newValues[0], 'This is im');   // sentence fixed, fragment "im" untouched
+  assert.strictEqual(r.newValues[1], 'portant stuff ');
+});
+
+test('leading fragment of a straddled word is not sentence-capitalized', () => {
+  const c = createCapitalizer([]);
+  const r = c.fixTextNodes(['goo', 'gle rocks'], -1, -1);
+  assert.strictEqual(r.newValues[0], 'goo');  // fragment, not a word
+  assert.strictEqual(r.newValues[1], 'gle rocks');
 });
 
 test('unchanged input reports changed=false', () => {

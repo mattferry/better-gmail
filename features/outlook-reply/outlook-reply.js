@@ -60,7 +60,7 @@
     return clean(
       document.querySelector(S().threadSubject)?.innerText ||
       document.title
-        .replace(/\s*-\s*[^\s@-]+@[^\s-]+\s*-\s*Gmail\s*$/i, '')
+        .replace(/\s+-\s+\S+@\S+\s+-\s+Gmail\s*$/i, '') // \S+ so hyphenated addresses/domains match
         .replace(/\s*-\s*Gmail\s*$/i, '')
         .replace(/^Gmail\s*-\s*/i, '')
     );
@@ -92,11 +92,11 @@
   }
 
   function getSentDate(attr, message) {
-    // Last-resort [title] fallback must actually look like a date — any icon's
-    // tooltip used to win here (audit fix 2026-07-14).
+    // Fallback [title] elements must actually parse as a date — any icon's or
+    // logo's tooltip used to win here (audit fix 2026-07-14; QA closed the
+    // [title][alt] tier too, which let signature images through).
     const dateEl =
       message?.querySelector(S().messageDate) ||
-      message?.querySelector('[title][alt]') ||
       Array.from(message?.querySelectorAll('[title]') || [])
         .find((el) => !isNaN(Date.parse(el.getAttribute('title'))));
 

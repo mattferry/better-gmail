@@ -91,7 +91,11 @@
     return true;
   }
 
-  // Bounded rAF wait for asynchronously-rendered UI (native dropdowns).
+  // Bounded wait for asynchronously-rendered UI (native dropdowns).
+  // setTimeout, NOT requestAnimationFrame: rAF is fully suspended in hidden
+  // tabs, which would leave this promise pending and fire the queued action at
+  // an arbitrary later time when the user tabs back (QA finding). setTimeout
+  // still ticks (throttled) in background tabs, so the deadline is enforced.
   function waitFor(getEl, timeoutMs) {
     return new Promise((resolve) => {
       const deadline = Date.now() + (timeoutMs || 2000);
@@ -100,7 +104,7 @@
         try { el = getEl(); } catch (e) { /* keep polling */ }
         if (el) return resolve(el);
         if (Date.now() > deadline) return resolve(null);
-        requestAnimationFrame(poll);
+        setTimeout(poll, 100);
       })();
     });
   }
@@ -165,14 +169,23 @@
     const btn = R().resolve('labelsButton');
     if (!btn) return Promise.resolve(false);
     dispatchClick(btn);
-    return selectFromNativeDropdown(labelFullName);
+    // commit=true: Gmail's Labels menu toggles a label row's CHECKBOX on click
+    // and commits via its "Apply" item / Enter — unlike Move-to, which acts
+    // immediately (QA finding; commit mechanics need one live confirmation).
+    return selectFromNativeDropdown(labelFullName, true);
+  }
+
+  // Best-effort close so a failed flow doesn't strand Gmail's dropdown open
+  // with our text sitting in its filter box.
+  function closeDropdown(dropdown, input) {
+    const esc = { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true };
+    (input || dropdown).dispatchEvent(new KeyboardEvent('keydown', esc));
   }
 
   // After opening the native Move-to/Labels dropdown: wait for it to render,
-  // type the leaf into its filter input, then click the matching item.
-  // (Move-to and Labels currently share mechanics; the semantic difference —
-  // archive vs keep-in-inbox — comes from which button opened the dropdown.)
-  async function selectFromNativeDropdown(labelFullName) {
+  // type the leaf into its filter input, then click the matching item. With
+  // `commit`, also drive the menu's Apply/Enter commit step (Labels menu).
+  async function selectFromNativeDropdown(labelFullName, commit) {
     if (!labelFullName) return false;
     const leaf = labelFullName.split('/').pop();
     const matchesLabel = (el) => {
@@ -192,8 +205,22 @@
       await waitFor(() => qa(SELECTORS.moveDropdownItem, dropdown).find(matchesLabel), 1500);
     }
     const item = qa(SELECTORS.moveDropdownItem, dropdown).find(matchesLabel);
-    if (!item) return false;
+    if (!item) { closeDropdown(dropdown, input); return false; }
     dispatchClick(item);
+
+    if (commit) {
+      // Let the checkbox toggle land, then commit: prefer the visible "Apply"
+      // item, else Enter in the filter input. Harmless if Gmail auto-committed.
+      await waitFor(() => null, 200); // small settle delay
+      const apply = qa(SELECTORS.moveDropdownItem, dropdown)
+        .concat(qa('button, [role="button"]', dropdown))
+        .find((el) => /^apply$/i.test((el.textContent || '').trim()) && R().isVisible(el));
+      if (apply) dispatchClick(apply);
+      else if (input) {
+        const enter = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
+        input.dispatchEvent(new KeyboardEvent('keydown', enter));
+      }
+    }
     return true;
   }
 

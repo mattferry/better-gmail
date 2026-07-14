@@ -137,20 +137,52 @@
     // the word still being typed (caret at end of text) is left alone.
     // sentenceStartInitial (default true) lets per-node callers carry sentence
     // state across text nodes — see fixTextNodes.
-    function fixBlockText(text, caretOffset, sentenceStartInitial) {
+    function fixBlockText(text, caretOffset, sentenceStartInitial, opts) {
+      return fixBlockDetailed(text, caretOffset, sentenceStartInitial, opts).text;
+    }
+
+    // Full-detail variant: returns { text, caret } where `caret` is the caret's
+    // EXACT position in the rewritten text, tracked through the token walk (a
+    // blanket "shift by total length change" moved the caret even when the
+    // change happened after it — QA-proven drift). opts.skipFirstWord /
+    // opts.skipLastWord force those words to pass through verbatim — used by
+    // fixTextNodes when a word straddles a text-node boundary (a leading
+    // fragment like "im" of "important" must never be contraction-"fixed").
+    function fixBlockDetailed(text, caretOffset, sentenceStartInitial, opts) {
+      const options = opts || {};
       const tokens = tokenize(text);
-      const skipLast = isUnfinishedLastWord(tokens, caretOffset, text.length);
+      const skipLast = isUnfinishedLastWord(tokens, caretOffset, text.length) || !!options.skipLastWord;
+      const skipFirst = !!options.skipFirstWord;
+      const trackCaret = typeof caretOffset === 'number' && caretOffset >= 0;
 
       let sentenceStart = sentenceStartInitial !== false;
       let output = '';
+      let outCaret = null;
+      let inPos = 0;
+      let firstWordSeen = false;
       let i = 0;
+
+      // Every append goes through emit() so the caret can be mapped exactly:
+      // inside an unchanged token it keeps its offset; inside a replaced token
+      // it clamps to the replacement's length.
+      function emit(origToken, replacement) {
+        if (trackCaret && outCaret === null && caretOffset >= inPos && caretOffset <= inPos + origToken.length) {
+          outCaret = output.length + Math.min(caretOffset - inPos, replacement.length);
+        }
+        output += replacement;
+        inPos += origToken.length;
+      }
 
       while (i < tokens.length) {
         const token = tokens[i];
 
         if (isWord(token)) {
-          if (skipLast && i === tokens.length - 1) {
-            output += token;
+          const isFirstWord = !firstWordSeen;
+          firstWordSeen = true;
+
+          if ((skipLast && i === tokens.length - 1) || (skipFirst && isFirstWord)) {
+            emit(token, token);
+            sentenceStart = false;
             i++;
             continue;
           }
@@ -159,29 +191,30 @@
           if (phraseMatch) {
             phraseMatch.wordIndexes.forEach(function (wordIndex, pos) {
               while (i < wordIndex) {
-                output += tokens[i];
+                emit(tokens[i], tokens[i]);
                 i++;
               }
               let replacement = phraseMatch.replacementWords[pos] || tokens[wordIndex];
               if (sentenceStart && pos === 0 && /^[a-z]/.test(replacement)) {
                 replacement = replacement.charAt(0).toUpperCase() + replacement.slice(1);
               }
-              output += replacement;
+              emit(tokens[wordIndex], replacement);
               sentenceStart = false;
               i++;
             });
             continue;
           }
 
-          output += fixWord(token, sentenceStart);
+          emit(token, fixWord(token, sentenceStart));
           sentenceStart = false;
         } else {
-          output += token;
+          emit(token, token);
           if (/[.!?]/.test(token)) sentenceStart = true;
         }
         i++;
       }
-      return output;
+      if (trackCaret && outCaret === null) outCaret = output.length;
+      return { text: output, caret: outCaret };
     }
 
     // Per-text-node rewrite (audit fix 2026-07-14). The old whole-block rewrite
@@ -189,28 +222,39 @@
     // rest, destroying inline formatting (links/bold/italic) and — when the block
     // resolved to the whole editor — flattening multi-line drafts into one line.
     // Rewriting each node separately can never corrupt structure; the trade-off
-    // is that words/phrases split across inline elements are no longer matched.
+    // is that words/phrases split across inline elements are no longer matched
+    // (and, deliberately, never "fixed": a word FRAGMENT at a node seam — e.g.
+    // "im" of "im|portant" split by bold — passes through verbatim, because
+    // contraction-fixing a fragment injects characters into the user's word).
     // `values` are the text nodes' strings in document order; caretNodeIndex /
-    // caretOffsetInNode locate the user's caret so the word still being typed in
-    // that node is left alone. Returns { changed, newValues, caretDelta } where
-    // caretDelta is the length change of the caret node (for caret restoration).
+    // caretOffsetInNode locate the user's caret. Returns { changed, newValues,
+    // caretOffset } where caretOffset is the caret's exact new position within
+    // its node's rewritten text (null when no caret node was given).
     function fixTextNodes(values, caretNodeIndex, caretOffsetInNode) {
+      const wordEdge = /[A-Za-z0-9+#/-]/;
       const newValues = [];
       let sentenceStart = true;
       let changed = false;
-      let caretDelta = 0;
-      (values || []).forEach(function (value, i) {
+      let newCaretOffset = caretNodeIndex >= 0 && typeof caretOffsetInNode === 'number' ? caretOffsetInNode : null;
+      const vals = values || [];
+      vals.forEach(function (value, i) {
         const text = String(value == null ? '' : value);
         const isCaretNode = i === caretNodeIndex;
-        const fixed = fixBlockText(text, isCaretNode ? caretOffsetInNode : -1, sentenceStart);
-        if (fixed !== text) {
+        const prev = i > 0 ? String(vals[i - 1] == null ? '' : vals[i - 1]) : '';
+        const next = i < vals.length - 1 ? String(vals[i + 1] == null ? '' : vals[i + 1]) : '';
+        const opts = {
+          skipFirstWord: !!(prev && wordEdge.test(prev.charAt(prev.length - 1)) && text && wordEdge.test(text.charAt(0))),
+          skipLastWord: !!(next && wordEdge.test(next.charAt(0)) && text && wordEdge.test(text.charAt(text.length - 1)))
+        };
+        const res = fixBlockDetailed(text, isCaretNode ? caretOffsetInNode : -1, sentenceStart, opts);
+        if (res.text !== text) {
           changed = true;
-          if (isCaretNode) caretDelta = fixed.length - text.length;
+          if (isCaretNode) newCaretOffset = res.caret;
         }
-        newValues.push(fixed);
+        newValues.push(res.text);
         sentenceStart = sentenceStartAfter(text, sentenceStart);
       });
-      return { changed, newValues, caretDelta };
+      return { changed, newValues, caretOffset: newCaretOffset };
     }
 
     return { fixBlockText, fixTextNodes, addCustomWord };
