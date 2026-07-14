@@ -129,7 +129,10 @@
     while (n && n !== document.documentElement) {
       const bg = getComputedStyle(n).backgroundColor;
       const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-      if (m && !(m[4] !== undefined && parseFloat(m[4]) === 0)) { rgb = [+m[1], +m[2], +m[3]]; break; }
+      // Only a near-opaque layer defines the effective background. A translucent
+      // fill (0<a<1) sits over whatever is behind it, so keep walking — using its
+      // uncomposited RGB would pick the wrong contrast (finding, verified).
+      if (m && (m[4] === undefined || parseFloat(m[4]) >= 0.9)) { rgb = [+m[1], +m[2], +m[3]]; break; }
       n = n.parentElement;
     }
     const lum = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];

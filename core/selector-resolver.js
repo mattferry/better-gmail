@@ -123,10 +123,19 @@
       (el.hasAttribute('download') || /^download attachment/i.test(el.getAttribute('aria-label') || '')) &&
       (!body || !body.contains(el)));
     if (!btns.length) return null;
+    // Climb to the highest element whose PARENT still contains the message body
+    // (or hits the scope boundary): that element sits beside the body's branch —
+    // the tray, or a wrapper directly holding the tray.
     let w = btns[0];
     while (w.parentElement && w.parentElement !== scope && !(body && w.parentElement.contains(body))) w = w.parentElement;
-    const tray = Array.from(w.children || []).find((ch) => btns.every((b) => ch.contains(b)));
-    return tray && tray !== document.body ? tray : null;
+    // If a single child of w already holds ALL the download buttons (Gmail wraps
+    // the cards in one .aQH), that child is the tighter tray; otherwise w itself
+    // is the container of the (possibly multiple) cards. Either way never the body.
+    const child = Array.from(w.children || []).find((ch) =>
+      btns.every((b) => ch.contains(b)) && !(body && ch.contains(body)));
+    const tray = child || w;
+    if (!tray || tray === scope || tray === document.body || (body && tray.contains(body))) return null;
+    return tray;
   }
 
   // --- role registry ---

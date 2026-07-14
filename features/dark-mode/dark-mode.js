@@ -45,6 +45,14 @@
     if (document.documentElement.getAttribute('data-ob-dark') !== 'on' ||
         document.documentElement.getAttribute('data-ob-host') !== 'gmail') return;
 
+    // Re-derive from scratch every time: role=main is REUSED across the list and
+    // thread views, so a stamp applied while a thread was open would otherwise
+    // persist onto the inbox list after navigating back (darkening it). Clearing
+    // first, then re-stamping only what's currently valid, is correct and — since
+    // this runs only on navigation/focus, not per-mutation — cheap. No repaint
+    // happens between the clear and the re-stamp (one synchronous pass).
+    clearSurfaces();
+
     // Read-mode chrome (A/A2) only when a message body is actually open. In the
     // inbox LIST view there is no .ii, and scanning role=main there would stamp
     // the inbox list itself — darkening chrome the feature must leave to Gmail's
@@ -53,11 +61,13 @@
     const bodies = document.querySelectorAll('.ii');
     if (bodies.length) {
       // A) the message card: walk up from each body toward role=main, stamping
-      // light chrome. Only the ancestors of an open body — never the list.
+      // light chrome. The invertedContainer guard skips any ancestor that is
+      // itself inside another inverted region (e.g. a read .ii quoted inside a
+      // compose editor) — stamping there would double-darken under the filter.
       bodies.forEach((ii) => {
         let el = ii.parentElement;
         while (el && el !== document.body) {
-          if (isLightBg(el)) stamp(el);
+          if (!invertedContainer(el) && isLightBg(el)) stamp(el);
           if (el.getAttribute('role') === 'main') break;
           el = el.parentElement;
         }
@@ -123,7 +133,12 @@
     const on = document.documentElement.getAttribute('data-ob-dark') === 'on' &&
                document.documentElement.getAttribute('data-ob-host') === 'gmail';
     if (!on) { clearTimeout(debounceTimer); clearSurfaces(); return; }
+    // Immediate pass for the fast case, plus the two-shot late passes: on first
+    // load (or a live enable) the body may not have painted yet, and the router's
+    // one-time initial fire already ran before settings resolved, so we can't
+    // rely on onNavigate for that first view.
     refreshSurfaces();
+    scheduleNavRefresh();
     if (triggersWired) return;
     triggersWired = true;
     if (window.__OB && window.__OB.router && typeof window.__OB.router.onNavigate === 'function') {
@@ -136,6 +151,13 @@
           e.target.closest('div[role="dialog"], div[contenteditable="true"][role="textbox"]')) {
         scheduleRefresh();
       }
+    }, true);
+    // Expanding a collapsed message in a multi-message thread reveals new card
+    // chrome with no navigation and no editor focus — a click inside role=main
+    // (which is where a message header expands) re-runs the refresh. Debounced;
+    // a no-op cost in the list view (no .ii -> read passes skip).
+    document.addEventListener('click', (e) => {
+      if (e.target && e.target.closest && e.target.closest('div[role="main"]')) scheduleRefresh();
     }, true);
   }
 

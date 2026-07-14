@@ -37,11 +37,6 @@
       return; // fail safe -> let the native browser/Gmail menu appear
     }
     if (!ok) return; // couldn't confirm/select the row -> fall back to native menu, no preventDefault
-    e.preventDefault();
-    // Capture-phase listener: stop the event from reaching Gmail's own handlers
-    // too — preventDefault alone suppressed only the BROWSER menu, so Gmail's
-    // custom right-click menu opened alongside ours (field fix 2026-07-14).
-    e.stopPropagation();
     try {
       const info = OB.gmail.getRowInfo(row);
       const items = [
@@ -65,6 +60,12 @@
         { label: 'Snooze…', onClick: guard('snooze', () => OB.gmail.snooze()) }
       );
       OB.ui.buildMenu(items, e.clientX, e.clientY);
+      // Suppress the native/Gmail menus ONLY after our menu is successfully
+      // built — fail-open: if buildMenu throws, the user still gets a menu
+      // (capture-phase stopPropagation also blocks Gmail's own handler, so this
+      // must run after the build, never before it — finding, verified).
+      e.preventDefault();
+      e.stopPropagation();
     } catch (err) {
       console.warn('[OB] context-menu: build failed', err);
     }
