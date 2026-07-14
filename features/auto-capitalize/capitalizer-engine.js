@@ -15,11 +15,14 @@
     'your', 'rest', 'meet', 'flight'
   ]);
 
+  // NOTE: 'ill' is deliberately NOT mapped to "I'll" — unlike the other keys it
+  // is a common English word, and the mapping corrupted real sentences
+  // ("the patient is ill" -> "the patient is I'll"; tribunal finding, verified).
   const CONTRACTION_MAP = new Map([
     ['lets', "let's"], ['dont', "don't"], ['doesnt', "doesn't"],
     ['didnt', "didn't"], ['cant', "can't"], ['couldnt', "couldn't"],
     ['shouldnt', "shouldn't"], ['wouldnt', "wouldn't"], ['wont', "won't"],
-    ['im', "I'm"], ['ive', "I've"], ['ill', "I'll"],
+    ['im', "I'm"], ['ive', "I've"],
     ['youre', "you're"], ['youve', "you've"], ['theyre', "they're"],
     ['weve', "we've"], ['thats', "that's"], ['whats', "what's"]
   ]);
@@ -164,10 +167,13 @@
 
       // Every append goes through emit() so the caret can be mapped exactly:
       // inside an unchanged token it keeps its offset; inside a replaced token
-      // it clamps to the replacement's length.
+      // it clamps to the replacement's length; AT THE END of a replaced token it
+      // maps to the replacement's end ("im|" -> "I'm|", not "I'|m" — tribunal
+      // finding, verified).
       function emit(origToken, replacement) {
         if (trackCaret && outCaret === null && caretOffset >= inPos && caretOffset <= inPos + origToken.length) {
-          outCaret = output.length + Math.min(caretOffset - inPos, replacement.length);
+          const rel = caretOffset - inPos;
+          outCaret = output.length + (rel >= origToken.length ? replacement.length : Math.min(rel, replacement.length));
         }
         output += replacement;
         inPos += origToken.length;
@@ -209,7 +215,11 @@
           sentenceStart = false;
         } else {
           emit(token, token);
-          if (/[.!?]/.test(token)) sentenceStart = true;
+          // Sentence end only when the punctuation is followed by whitespace or
+          // ends the text — a bare "." glued between words is a domain/filename
+          // separator ("corp.com", "report.pdf"), and treating it as a sentence
+          // end capitalized the tail ("corp.Com" — tribunal finding, verified).
+          if (/[.!?]/.test(token) && (/\s/.test(token) || i === tokens.length - 1)) sentenceStart = true;
         }
         i++;
       }
@@ -263,13 +273,15 @@
   // Walk a text's tokens the same way fixBlockText does and return whether the
   // NEXT text would begin at a sentence start — used to carry sentence state
   // across sibling text nodes so a node beginning mid-sentence isn't wrongly
-  // treated as a sentence start.
+  // treated as a sentence start. MUST mirror fixBlockDetailed's flag rule
+  // exactly (including the domain/filename "." exemption).
   function sentenceStartAfter(text, initial) {
     let flag = initial !== false;
-    for (const token of tokenize(String(text == null ? '' : text))) {
+    const tokens = tokenize(String(text == null ? '' : text));
+    tokens.forEach(function (token, i) {
       if (isWord(token)) flag = false;
-      else if (/[.!?]/.test(token)) flag = true;
-    }
+      else if (/[.!?]/.test(token) && (/\s/.test(token) || i === tokens.length - 1)) flag = true;
+    });
     return flag;
   }
 

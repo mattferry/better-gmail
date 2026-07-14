@@ -71,10 +71,12 @@
 
   // Find a control by its accessible-label meaning. VISIBLE matches only — a
   // hidden lookalike (row-hover action icons, template copies) must never be
-  // returned, let alone learned.
-  function findByLabel(patterns, root) {
+  // returned, let alone learned. `accept` lets callers filter INSIDE the scan,
+  // so a visible lookalike earlier in document order can't shadow the real
+  // control into a miss (tribunal finding).
+  function findByLabel(patterns, root, accept) {
     const candidates = qa('[aria-label], [data-tooltip]', root);
-    return candidates.find((el) => isVisible(el) && labelMatches(labelOf(el), patterns)) || null;
+    return candidates.find((el) => isVisible(el) && labelMatches(labelOf(el), patterns) && (!accept || accept(el))) || null;
   }
 
   // Gmail's toolbar action buttons live in the list toolbar; the same labels
@@ -84,18 +86,24 @@
     return !!(el && el.closest && el.closest('[gh="mtb"], [role="toolbar"]'));
   }
 
-  // Smallest visible container holding every visible [role="menuitem"] — how we
-  // find an open native dropdown without knowing Gmail's container classes.
-  // The climb is bounded by `root`/document.body; reaching the bound means the
-  // items aren't one coherent menu, so return null rather than a giant ancestor.
+  // Find an open native dropdown without knowing Gmail's container classes:
+  // the first FLOATING (absolute/fixed) ancestor of the first visible menuitem.
+  // Deliberately NOT "common ancestor of all visible menuitems" — with two
+  // menus open at once that walked up to a shared overlay containing both, and
+  // the dropdown driver could then click an item from the wrong menu
+  // (tribunal finding). One item's floating ancestor is always one coherent menu.
   function findOpenMenuContainer(root) {
     const scope = root || document;
-    const items = qa('[role="menuitem"], [role="option"]', scope).filter(isVisible);
-    if (!items.length) return null;
+    const item = qa('[role="menuitem"], [role="option"]', scope).find(isVisible);
+    if (!item) return null;
     const bound = scope === document ? document.body : scope;
-    let c = items[0].parentElement;
-    while (c && c !== bound && !items.every((m) => c.contains(m))) c = c.parentElement;
-    return c && c !== bound && c !== document.body ? c : null;
+    let c = item.parentElement;
+    while (c && c !== bound && c !== document.body) {
+      const pos = getComputedStyle(c).position;
+      if (pos === 'absolute' || pos === 'fixed') return c;
+      c = c.parentElement;
+    }
+    return null;
   }
 
   // Smallest ancestor (strictly inside root) of the first download link that
@@ -146,44 +154,44 @@
       // Move-to click into a real mailbox mutation (QA finding).
       static: ['div[aria-label="Move to"], div[data-tooltip="Move to"]'],
       pickVisible: true,
-      probe(root) { return findByLabel([/^move to$/i], root); },
+      probe(root) { return findByLabel([/^move to$/i], root, inToolbar); },
       verify(el) { return labelMatches(labelOf(el), [/^move to$/i]) && inToolbar(el); }
     },
     labelsButton: {
       static: ['div[aria-label="Labels"], div[data-tooltip="Labels"]'],
       pickVisible: true,
-      probe(root) { return findByLabel([/^labels?$/i, /^label as$/i], root); },
+      probe(root) { return findByLabel([/^labels?$/i, /^label as$/i], root, inToolbar); },
       verify(el) { return labelMatches(labelOf(el), [/^labels?$/i, /^label as$/i]) && inToolbar(el); }
     },
     markUnread: {
       static: ['div[aria-label="Mark as unread"], div[data-tooltip="Mark as unread"]'],
       pickVisible: true,
-      probe(root) { return findByLabel([/mark as unread/i], root); },
+      probe(root) { return findByLabel([/mark as unread/i], root, inToolbar); },
       verify(el) { return labelMatches(labelOf(el), [/mark as unread/i]) && inToolbar(el); }
     },
     markRead: {
       static: ['div[aria-label="Mark as read"], div[data-tooltip="Mark as read"]'],
       pickVisible: true,
-      probe(root) { return findByLabel([/mark as read/i], root); },
+      probe(root) { return findByLabel([/mark as read/i], root, inToolbar); },
       verify(el) { return labelMatches(labelOf(el), [/mark as read/i]) && inToolbar(el); }
     },
     archiveButton: {
       static: ['div[aria-label="Archive"], div[data-tooltip="Archive"]'],
       pickVisible: true,
-      probe(root) { return findByLabel([/^archive$/i], root); },
+      probe(root) { return findByLabel([/^archive$/i], root, inToolbar); },
       verify(el) { return labelMatches(labelOf(el), [/^archive$/i]) && inToolbar(el); }
     },
     deleteButton: {
       static: ['div[aria-label="Delete"], div[data-tooltip="Delete"]'],
       pickVisible: true,
-      probe(root) { return findByLabel([/^delete$/i], root); },
+      probe(root) { return findByLabel([/^delete$/i], root, inToolbar); },
       verify(el) { return labelMatches(labelOf(el), [/^delete$/i]) && inToolbar(el); }
     },
     snoozeButton: {
       // Exact — /^snooze/i would also match the left-nav "Snoozed" link.
       static: ['div[aria-label="Snooze"], div[data-tooltip="Snooze"]'],
       pickVisible: true,
-      probe(root) { return findByLabel([/^snooze$/i], root); },
+      probe(root) { return findByLabel([/^snooze$/i], root, inToolbar); },
       verify(el) { return labelMatches(labelOf(el), [/^snooze$/i]) && inToolbar(el); }
     },
     // Native Move-to / Labels dropdown, once opened. `.J-M` is the current
@@ -198,6 +206,7 @@
     },
     attachmentTray: {
       static: ['.aQH'],
+      pickVisible: true, // a hidden tray (collapsed message, template copy) is never the right source
       probe(root) { return findAttachmentTray(root); },
       verify(el) { return !!el.querySelector('a[download], [download]'); }
     }

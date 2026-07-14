@@ -157,22 +157,37 @@
     return qa(SELECTORS.recipientChip).map((s) => s.getAttribute('email')).filter(Boolean);
   }
 
-  // Both return a Promise<boolean> — the native dropdown renders asynchronously.
-  function clickMoveTo(labelFullName) {
-    const btn = R().resolve('moveToButton');
-    if (!btn) return Promise.resolve(false);
-    dispatchClick(btn);
-    return selectFromNativeDropdown(labelFullName);
+  // Serialize the dropdown flows: two overlapping calls (double-click, context
+  // menu racing the toolbar button) would interleave filter text and item
+  // clicks across two open native menus (tribunal finding).
+  let dropdownFlowLock = Promise.resolve();
+  function withDropdownLock(fn) {
+    const run = dropdownFlowLock.then(fn, fn);
+    dropdownFlowLock = run.catch(() => {});
+    return run;
   }
 
-  function applyLabel(rowEls, labelFullName) {
-    const btn = R().resolve('labelsButton');
-    if (!btn) return Promise.resolve(false);
-    dispatchClick(btn);
-    // commit=true: Gmail's Labels menu toggles a label row's CHECKBOX on click
-    // and commits via its "Apply" item / Enter — unlike Move-to, which acts
-    // immediately (QA finding; commit mechanics need one live confirmation).
-    return selectFromNativeDropdown(labelFullName, true);
+  // Both return a Promise<boolean> — the native dropdown renders asynchronously.
+  // Both act on Gmail's CURRENT selection (callers select rows first).
+  function clickMoveTo(labelFullName) {
+    return withDropdownLock(() => {
+      const btn = R().resolve('moveToButton');
+      if (!btn) return false;
+      dispatchClick(btn);
+      return selectFromNativeDropdown(labelFullName);
+    });
+  }
+
+  function applyLabel(labelFullName) {
+    return withDropdownLock(() => {
+      const btn = R().resolve('labelsButton');
+      if (!btn) return false;
+      dispatchClick(btn);
+      // commit=true: Gmail's Labels menu toggles a label row's CHECKBOX on click
+      // and commits via its "Apply" item / Enter — unlike Move-to, which acts
+      // immediately (QA finding; commit mechanics need one live confirmation).
+      return selectFromNativeDropdown(labelFullName, true);
+    });
   }
 
   // Best-effort close so a failed flow doesn't strand Gmail's dropdown open
@@ -188,9 +203,17 @@
   async function selectFromNativeDropdown(labelFullName, commit) {
     if (!labelFullName) return false;
     const leaf = labelFullName.split('/').pop();
-    const matchesLabel = (el) => {
-      const t = (el.textContent || '').trim();
-      return t === leaf || t === labelFullName;
+    // Prefer an exact full-path match; fall back to the leaf name ONLY when it
+    // is unambiguous — with nested labels sharing a leaf ("Work/Email" vs
+    // "Personal/Email") a blind leaf match could act on the wrong label
+    // (tribunal finding).
+    const findTarget = () => {
+      const items = qa(SELECTORS.moveDropdownItem, dropdown);
+      const text = (el) => (el.textContent || '').trim();
+      const byFull = items.filter((el) => text(el) === labelFullName);
+      if (byFull.length) return byFull[0];
+      const byLeaf = items.filter((el) => text(el) === leaf);
+      return byLeaf.length === 1 ? byLeaf[0] : null;
     };
 
     const dropdown = await waitFor(() => R().resolve('moveDropdown'), 2500);
@@ -202,9 +225,9 @@
       input.value = leaf;
       input.dispatchEvent(new Event('input', { bubbles: true }));
       // give the list a beat to filter down
-      await waitFor(() => qa(SELECTORS.moveDropdownItem, dropdown).find(matchesLabel), 1500);
+      await waitFor(findTarget, 1500);
     }
-    const item = qa(SELECTORS.moveDropdownItem, dropdown).find(matchesLabel);
+    const item = findTarget();
     if (!item) { closeDropdown(dropdown, input); return false; }
     dispatchClick(item);
 

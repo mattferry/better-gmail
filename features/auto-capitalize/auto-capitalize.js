@@ -109,8 +109,11 @@
 
     // Rewriting the caret's own node resets the selection — restore it at the
     // exact tracked position (the engine maps the caret through each token, so
-    // a fix AFTER the caret no longer drifts it).
-    if (caretNodeChanged && typeof result.caretOffset === 'number') {
+    // a fix AFTER the caret no longer drifts it). Only while the editor still
+    // has focus: a blur-triggered pass must not re-select text in a compose box
+    // the user just left (tribunal finding).
+    if (caretNodeChanged && typeof result.caretOffset === 'number' &&
+        editor.contains(document.activeElement)) {
       const node = nodes[caretNodeIndex];
       const offset = Math.max(0, Math.min(result.caretOffset, node.nodeValue.length));
       const r = document.createRange();

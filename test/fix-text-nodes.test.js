@@ -82,4 +82,29 @@ test('sentenceStartAfter walks tokens like the block fixer', () => {
   assert.strictEqual(sentenceStartAfter('hello world. ', true), true);
   assert.strictEqual(sentenceStartAfter('   ', false), false);
   assert.strictEqual(sentenceStartAfter('', true), true);
+  // domain/filename dots are not sentence ends; a text-final dot is
+  assert.strictEqual(sentenceStartAfter('see corp.com and', true), false);
+  assert.strictEqual(sentenceStartAfter('done.', true), true);
+});
+
+// --- tribunal (Grok) findings, verified with repros before fixing ---
+
+test('domains and filenames are not treated as sentence boundaries (tribunal repro)', () => {
+  const c = createCapitalizer([]);
+  assert.strictEqual(c.fixBlockText('sent to bob@corp.com today', -1), 'Sent to bob@corp.com today');
+  assert.strictEqual(c.fixBlockText('see report.pdf attached', -1), 'See report.pdf attached');
+  // real sentence breaks still work
+  assert.strictEqual(c.fixBlockText('done. next item', -1), 'Done. Next item');
+});
+
+test('the word "ill" is never contraction-rewritten (tribunal repro)', () => {
+  const c = createCapitalizer([]);
+  assert.strictEqual(c.fixBlockText('the patient is ill today', -1), 'The patient is ill today');
+});
+
+test('caret at the end of an expanded token lands after the replacement (tribunal repro)', () => {
+  const c = createCapitalizer([]);
+  const r = c.fixTextNodes(['im going'], 0, 2); // caret right after "im"
+  assert.strictEqual(r.newValues[0], "I'm going");
+  assert.strictEqual(r.caretOffset, 3); // after "I'm", not inside it
 });

@@ -1,6 +1,6 @@
 {
   "name": "better-gmail",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Better Gmail — a Chrome extension that gives Gmail + Google Calendar Outlook-style UX, built for environments with NO Gmail API access (no OAuth, no Cloud project). Everything works purely in the page as a content script.",
   "scripts": {

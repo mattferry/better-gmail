@@ -19,8 +19,9 @@
     const OB = window.__OB;
     const rows = OB.gmail.getSelectedRowEls();
     if (!rows.length) { OB.ui.toast('Select an email first'); return; }
-    // applyLabel is async — Gmail renders the native Labels dropdown after the click.
-    Promise.resolve(OB.gmail.applyLabel(rows, 'Categories/' + name))
+    // applyLabel is async — Gmail renders the native Labels dropdown after the
+    // click — and acts on the current selection (rows above just gate on it).
+    Promise.resolve(OB.gmail.applyLabel('Categories/' + name))
       .then((ok) => OB.ui.toast(ok ? ('Categorized: ' + name) : 'Could not categorize'))
       .catch((e) => { console.warn('[OB] categories: apply failed', e); OB.ui.toast('Could not categorize'); });
   }
