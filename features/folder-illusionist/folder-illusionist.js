@@ -58,7 +58,15 @@
     if (location.host !== 'mail.google.com') return; // never inject into Calendar
     const OB = window.__OB;
     return OB.settings.get('folderIllusionist')
-      .then((on) => { if (on) OB.ui.ensureChild(OB.gmail.getToolbarInsertionPoint(), BTN_ID, buildButton); else OB.ui.removeById(BTN_ID); })
+      .then((on) => {
+        if (!on) { OB.ui.removeById(BTN_ID); return; }
+        const el = OB.ui.ensureChild(OB.gmail.getToolbarInsertionPoint(), BTN_ID, buildButton);
+        // Pick a readable color from the toolbar's real background — inheriting
+        // Gmail's `color` rendered black-on-dark in its dark theme. `important`
+        // is required: Gmail sets the toolbar text color via an !important rule
+        // in a cross-origin sheet, so a plain inline color loses (field fix).
+        if (el) el.style.setProperty('color', OB.ui.readableTextColor(el.parentElement || el), 'important');
+      })
       .catch((e) => console.log('[OB] folder-illusionist: init failed', e));
   }
   const api = { init, openPickerAt };

@@ -55,7 +55,9 @@
     const ariaEl = item.querySelector('[aria-label]');
     if (ariaEl) {
       const aria = ariaEl.getAttribute('aria-label');
-      if (aria) return aria;
+      // current Gmail labels the card's controls "Download attachment <name>" /
+      // "Add attachment to Drive <name>" — strip the verb to get the filename
+      if (aria) return aria.replace(/^(download attachment|add attachment to drive)\s*/i, '');
     }
     return (item.textContent || '').trim().split('\n')[0];
   }

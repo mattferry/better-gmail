@@ -18,6 +18,7 @@
     tableInserter: true,
     outlookReply: true,
     outlookReplyButton: false,
+    performanceMode: true,
   };
 
   function mergeDefaults(stored) {

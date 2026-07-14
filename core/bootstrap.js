@@ -18,6 +18,7 @@
     OB.safe('formatPainter', () => OB.formatPainter.init());
     OB.safe('tableInserter', () => OB.tableInserter.init());
     OB.safe('outlookReply', () => OB.outlookReply.init());
+    OB.safe('performance', () => OB.performance.init());
   }
 
   OB.safe('darkMode', () => OB.darkMode.init());
@@ -57,7 +58,8 @@
   if (OB.settings && typeof OB.settings.onChange === 'function') {
     OB.settings.onChange((changes) => {
       if (changes.folderIllusionist || changes.contextMenu || changes.quickViews || changes.compactDensity || changes.confirmBeforeDelete || changes.categories ||
-          changes.attachmentsTop || changes.autoCapitalize || changes.formatPainter || changes.tableInserter || changes.outlookReply || changes.outlookReplyButton) {
+          changes.attachmentsTop || changes.autoCapitalize || changes.formatPainter || changes.tableInserter || changes.outlookReply || changes.outlookReplyButton ||
+          changes.performanceMode) {
         refreshFeatures();
       }
     });

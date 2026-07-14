@@ -38,6 +38,10 @@
     }
     if (!ok) return; // couldn't confirm/select the row -> fall back to native menu, no preventDefault
     e.preventDefault();
+    // Capture-phase listener: stop the event from reaching Gmail's own handlers
+    // too — preventDefault alone suppressed only the BROWSER menu, so Gmail's
+    // custom right-click menu opened alongside ours (field fix 2026-07-14).
+    e.stopPropagation();
     try {
       const info = OB.gmail.getRowInfo(row);
       const items = [

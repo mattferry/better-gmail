@@ -12,6 +12,40 @@ html[data-ob-dark="on"] .ii img,
 html[data-ob-dark="on"] .ii video {
   filter: invert(1) hue-rotate(180deg);
 }
+
+/* Gmail chrome around the body — message card, reply bar, compose windows —
+   stamped at runtime by dark-mode.js (field fix 2026-07-14: the card kept a
+   white ring around the inverted body). Plain dark background, NEVER a filter:
+   an inverted ancestor of .ii would double-invert the body back to light. */
+html[data-ob-dark="on"] [data-ob-dark-surface] {
+  background-color: #1f1f1f !important;
+}
+html[data-ob-dark="on"] [data-ob-dark-surface] h2.hP,
+html[data-ob-dark="on"] [data-ob-dark-surface] .gD,
+html[data-ob-dark="on"] [data-ob-dark-surface] .go,
+html[data-ob-dark="on"] [data-ob-dark-surface] .g3,
+html[data-ob-dark="on"] [data-ob-dark-surface] .hb {
+  color: #e8eaed !important;
+}
+html[data-ob-dark="on"] [data-ob-dark-surface] input,
+html[data-ob-dark="on"] [data-ob-dark-surface] textarea {
+  color: #e8eaed !important;      /* beat Gmail's .aoT { color:#222 } on compose fields */
+  background: transparent;
+  caret-color: #e8eaed !important;
+}
+
+/* Compose editors (bottom popup, popout, inline reply): same invert treatment
+   as read bodies (field fix 2026-07-14). #e0e0e0 inverts to the same #1f1f1f
+   as the stamped chrome, so the editor blends into the compose window. */
+html[data-ob-dark="on"] div[contenteditable="true"][role="textbox"] {
+  filter: invert(1) hue-rotate(180deg);
+  background: #e0e0e0;
+}
+html[data-ob-dark="on"] div[contenteditable="true"][role="textbox"] img,
+html[data-ob-dark="on"] div[contenteditable="true"][role="textbox"] video {
+  filter: invert(1) hue-rotate(180deg);
+}
+
 /* Calendar: invert residual white surfaces only (native dark handles the rest). */
 html[data-ob-dark="on"][data-ob-host="calendar"] .residual-white-surface {
   filter: invert(1) hue-rotate(180deg);

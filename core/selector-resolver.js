@@ -106,19 +106,27 @@
     return null;
   }
 
-  // Smallest ancestor (strictly inside root) of the first download link that
-  // contains all of root's download links — a semantic stand-in for Gmail's
-  // attachment tray. Returns null when the only common ancestor is root itself
-  // ("the whole message" is never a tray) and null for a SINGLE download link:
-  // with one sample the containment walk stops inside the attachment card
-  // itself, and relocating a card's internals would dismember it (QA finding).
+  // Semantic stand-in for Gmail's attachment tray (static `.aQH` first — this
+  // probe covers drift). Current Gmail renders attachment cards with
+  // "Download attachment <name>" BUTTONS and no a[download] anchors
+  // (live-verified 2026-07-14): climb from a download button to the wrapper
+  // whose parent contains the rendered message body, then take the wrapper's
+  // child that contains every download button — that child IS the tray
+  // (live-verified to land exactly on .aQH). Controls inside the body itself
+  // (inline-image hover overlays) are excluded so an inline-only message can
+  // never produce a "tray" made of body content.
   function findAttachmentTray(root) {
     const scope = root || document;
-    const dls = qa('a[download]', scope);
-    if (dls.length < 2) return null;
-    let c = dls[0].parentElement;
-    while (c && c !== scope && !dls.every((d) => c.contains(d))) c = c.parentElement;
-    return c && c !== scope && c !== document.body ? c : null;
+    if (!scope.querySelectorAll) return null;
+    const body = scope.querySelector('.a3s.aiL, .a3s');
+    const btns = qa('a[download], [aria-label]', scope).filter((el) =>
+      (el.hasAttribute('download') || /^download attachment/i.test(el.getAttribute('aria-label') || '')) &&
+      (!body || !body.contains(el)));
+    if (!btns.length) return null;
+    let w = btns[0];
+    while (w.parentElement && w.parentElement !== scope && !(body && w.parentElement.contains(body))) w = w.parentElement;
+    const tray = Array.from(w.children || []).find((ch) => btns.every((b) => ch.contains(b)));
+    return tray && tray !== document.body ? tray : null;
   }
 
   // --- role registry ---
@@ -208,7 +216,12 @@
       static: ['.aQH'],
       pickVisible: true, // a hidden tray (collapsed message, template copy) is never the right source
       probe(root) { return findAttachmentTray(root); },
-      verify(el) { return !!el.querySelector('a[download], [download]'); }
+      verify(el) {
+        // new Gmail: download BUTTONS; old Gmail: a[download] anchors
+        if (el.querySelector('a[download], [download]')) return true;
+        return Array.from(el.querySelectorAll('[aria-label]'))
+          .some((b) => /^download attachment/i.test(b.getAttribute('aria-label') || ''));
+      }
     }
   };
 

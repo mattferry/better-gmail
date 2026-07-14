@@ -118,6 +118,24 @@
     return !!el;
   }
 
-  const api = { toast, buildMenu, host, ensureChild, removeById };
+  // Readable text color for injected controls, chosen from the effective
+  // background behind `el` (walk up to the first opaque bg). Theme-agnostic:
+  // Gmail's toolbar sets color:#202124 even in its dark theme (its icons are
+  // SVGs, not text), so inheriting `color` renders black-on-dark — luminance of
+  // the real background is the reliable signal (field fix 2026-07-14).
+  function readableTextColor(el) {
+    let n = el;
+    let rgb = [255, 255, 255];
+    while (n && n !== document.documentElement) {
+      const bg = getComputedStyle(n).backgroundColor;
+      const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+      if (m && !(m[4] !== undefined && parseFloat(m[4]) === 0)) { rgb = [+m[1], +m[2], +m[3]]; break; }
+      n = n.parentElement;
+    }
+    const lum = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+    return lum < 128 ? '#e8eaed' : '#202124';
+  }
+
+  const api = { toast, buildMenu, host, ensureChild, removeById, readableTextColor };
   if (typeof window !== 'undefined') (window.__OB = window.__OB || {}).ui = api;
 })();

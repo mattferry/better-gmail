@@ -85,7 +85,19 @@
     if (location.host !== 'mail.google.com') return; // never inject into Calendar
     const OB = window.__OB;
     OB.settings.get('quickViews')
-      .then((on) => { if (on) OB.ui.ensureChild(OB.gmail.getToolbarInsertionPoint(), BAR_ID, buildBar); else OB.ui.removeById(BAR_ID); })
+      .then((on) => {
+        if (!on) { OB.ui.removeById(BAR_ID); return; }
+        const el = OB.ui.ensureChild(OB.gmail.getToolbarInsertionPoint(), BAR_ID, buildBar);
+        // Pick a readable color from the toolbar's real background. `important`
+        // + per-chip: Gmail styles toolbar buttons via an !important rule in a
+        // cross-origin sheet, so the chips (buttons) need it set directly, not
+        // just inherited from the bar (field fix 2026-07-14).
+        if (el) {
+          const color = OB.ui.readableTextColor(el.parentElement || el);
+          el.style.setProperty('color', color, 'important');
+          el.querySelectorAll('button').forEach((chip) => chip.style.setProperty('color', color, 'important'));
+        }
+      })
       .catch((e) => console.log('[OB] quick-views: init failed', e));
     initDensity();
     refreshConfirmDelete();

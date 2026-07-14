@@ -2,7 +2,7 @@ const S = window.__OB.settings;                 // dual-export gives us this in 
 const CHECKS = ['darkModeGmail','darkModeCalendar','folderIllusionist','contextMenu',
   'categories','quickViews','confirmBeforeDelete','compactDensity',
   'attachmentsTop','autoCapitalize','formatPainter','tableInserter',
-  'outlookReply','outlookReplyButton'];
+  'outlookReply','outlookReplyButton','performanceMode'];
 
 function load() {
   S.getAll().then((s) => {

@@ -1,0 +1,23 @@
+/* Performance mode — applied only when html[data-ob-perf] is set (zero cost off). */
+
+/* Gmail's hover/pane animations are a major jank source on weak hardware.
+   Near-zero durations keep animation-driven logic working (end events still
+   fire) while removing the per-frame work. */
+html[data-ob-perf] *,
+html[data-ob-perf] *::before,
+html[data-ob-perf] *::after {
+  animation-duration: 0.001s !important;
+  transition-duration: 0.001s !important;
+  animation-delay: 0s !important;
+  transition-delay: 0s !important;
+}
+html[data-ob-perf] {
+  scroll-behavior: auto !important;
+}
+
+/* Skip layout/paint for message-list rows outside the viewport. The intrinsic
+   size keeps the scrollbar stable; Chrome manages find-in-page/anchoring. */
+html[data-ob-perf] div[role="main"] tr[role="row"] {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 40px;
+}

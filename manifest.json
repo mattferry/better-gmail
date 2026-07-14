@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Better Gmail",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Outlook-style Gmail + Calendar for orgs with NO Gmail API access: dark email bodies, Move-to-Folder, Outlook right-click menu — pure in-page, no OAuth.",
   "icons": { "16": "assets/icon16.png", "48": "assets/icon48.png", "128": "assets/icon128.png" },
   "permissions": ["storage", "contextMenus"],
@@ -50,6 +50,7 @@
         "features/format-painter/format-painter.js",
         "features/table-inserter/table-inserter.js",
         "features/outlook-reply/outlook-reply.js",
+        "features/performance/performance.js",
         "core/bootstrap.js"
       ]
     },
@@ -59,7 +60,8 @@
       "css": [
         "features/dark-mode/dark-mode.css",
         "features/quick-views/quick-views.css",
-        "features/attachments-top/attachments-top.css"
+        "features/attachments-top/attachments-top.css",
+        "features/performance/performance.css"
       ]
     }
   ]
