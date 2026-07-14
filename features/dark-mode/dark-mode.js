@@ -45,31 +45,40 @@
     if (document.documentElement.getAttribute('data-ob-dark') !== 'on' ||
         document.documentElement.getAttribute('data-ob-host') !== 'gmail') return;
 
-    // A) the message card: walk up from each rendered body to role=main,
-    // stamping light chrome. Bounded to the ancestor chain — cheap on any size.
-    document.querySelectorAll('.ii').forEach((ii) => {
-      let el = ii.parentElement;
-      while (el && el !== document.body) {
-        if (isLightBg(el)) stamp(el);
-        if (el.getAttribute('role') === 'main') break;
-        el = el.parentElement;
-      }
-    });
-
-    // A2) residual wide light bands in the thread (reply/action bar, footer
-    // strips) that aren't on the card's ancestor chain. The offset size gate
-    // runs BEFORE getComputedStyle, so the expensive style read only happens for
-    // the handful of wide elements — keeps this cheap on a big thread.
-    document.querySelectorAll('div[role="main"]').forEach((main) => {
-      const minW = main.getBoundingClientRect().width * 0.5;
-      if (!minW) return;
-      main.querySelectorAll('div').forEach((el) => {
-        if (el.offsetWidth > minW && el.offsetHeight > 8 &&
-            !el.hasAttribute(SURFACE_ATTR) && !invertedContainer(el) && isLightBg(el)) {
-          stamp(el);
+    // Read-mode chrome (A/A2) only when a message body is actually open. In the
+    // inbox LIST view there is no .ii, and scanning role=main there would stamp
+    // the inbox list itself — darkening chrome the feature must leave to Gmail's
+    // own theme (a real overreach in light-theme Gmail). Compose (B) is
+    // independent and runs whenever a compose/reply is open.
+    const bodies = document.querySelectorAll('.ii');
+    if (bodies.length) {
+      // A) the message card: walk up from each body toward role=main, stamping
+      // light chrome. Only the ancestors of an open body — never the list.
+      bodies.forEach((ii) => {
+        let el = ii.parentElement;
+        while (el && el !== document.body) {
+          if (isLightBg(el)) stamp(el);
+          if (el.getAttribute('role') === 'main') break;
+          el = el.parentElement;
         }
       });
-    });
+
+      // A2) residual wide light bands in the open thread (reply/action bar,
+      // footer strips) not on the card's ancestor chain. The offset size gate
+      // runs BEFORE getComputedStyle so the expensive read only touches the few
+      // wide elements. Scoped to a main that actually contains an open body.
+      document.querySelectorAll('div[role="main"]').forEach((main) => {
+        if (!main.querySelector('.ii')) return; // list-only main — skip
+        const minW = main.getBoundingClientRect().width * 0.5;
+        if (!minW) return;
+        main.querySelectorAll('div').forEach((el) => {
+          if (el.offsetWidth > minW && el.offsetHeight > 8 &&
+              !el.hasAttribute(SURFACE_ATTR) && !invertedContainer(el) && isLightBg(el)) {
+            stamp(el);
+          }
+        });
+      });
+    }
 
     // B) compose windows (bottom popup, popout dialog, inline reply). The header
     // fields (To/Subject) live in a sibling branch of the editor with transparent
