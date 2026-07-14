@@ -59,13 +59,14 @@ html[data-ob-dark="on"] [data-ob-dark-editor] img,
 html[data-ob-dark="on"] [data-ob-dark-editor] video {
   filter: invert(1) hue-rotate(180deg);
 }
-/* Compose To/Subject inputs: light text on the stamped compose chrome. Scoped
-   with :has() to a stamped surface that actually contains a marked compose
-   editor, so it can NOT reach form inputs inside a read email body (which the
-   .ii invert would then flip to near-black — QA finding). Gmail's .aoT color
-   carries no !important, so ours wins. */
-html[data-ob-dark="on"] [data-ob-dark-surface]:has([data-ob-dark-editor]) input,
-html[data-ob-dark="on"] [data-ob-dark-surface]:has([data-ob-dark-editor]) textarea {
+/* Compose To/Subject inputs: light text on the stamped compose chrome. Excludes
+   inputs INSIDE a message body (:not(:where(.ii *))) directly — a :has()
+   surface scope leaked through a shared thread ancestor wrapping both a read
+   body and an inline reply, recoloring body form-inputs which the .ii invert
+   then flipped to near-black (QA finding). Gmail's .aoT color has no
+   !important, so ours wins. */
+html[data-ob-dark="on"] [data-ob-dark-surface] input:not(:where(.ii *)),
+html[data-ob-dark="on"] [data-ob-dark-surface] textarea:not(:where(.ii *)) {
   color: #e8eaed !important;
   background: transparent;
   caret-color: #e8eaed !important;

@@ -98,7 +98,11 @@
       if (!minW) return;
       const bands = [];
       main.querySelectorAll('div, table').forEach((el) => {
-        if (el.querySelector('.ii') || el.closest('.ii') || el.closest('[' + EDITOR_ATTR + ']')) return;
+        // Skip a band that contains OR is inside an inverted region — a band that
+        // CONTAINS a marked inline-reply editor would invert it a second time
+        // (QA finding), and a band inside .ii/an editor must never be touched.
+        if (el.querySelector('.ii') || el.querySelector('[' + EDITOR_ATTR + ']') ||
+            el.closest('.ii') || el.closest('[' + EDITOR_ATTR + ']')) return;
         if (el.offsetWidth > minW && el.offsetHeight > 8 && isOpaqueLight(el)) bands.push(el);
       });
       bands.forEach((el) => {
