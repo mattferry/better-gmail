@@ -147,21 +147,29 @@
   function teardown() {
     document.querySelectorAll('.' + BAR_CLASS).forEach((bar) => {
       const scope = bar.closest(S().messageContainer) || bar.parentElement;
-      let tray = scope ? findTray(scope) : null;
-      // Whole-tray-moved edge (childless tray, audit fix 2026-07-14): the "item"
-      // in the bar IS the tray — move it back out next to the bar first, or the
-      // restore below would try tray.appendChild(tray) and throw mid-teardown.
+      // Restore into the NATIVE tray, found by its static class directly — NOT
+      // the verify-gated resolver. Once the cards are in our bar the native tray
+      // is empty, so the resolver's verify fails and its probe previously
+      // resolved OUR OWN bar as the "tray", then deleted the cards inside it
+      // (QA blocker). querySelector('.aQH') still finds the empty native tray.
+      let tray = scope ? scope.querySelector(S().attachmentTray) : null;
+      // Whole-tray-moved edge (childless tray): the native tray itself was
+      // relocated INTO the bar — move it back out next to the bar first.
       if (tray && bar.contains(tray)) {
         bar.parentNode.insertBefore(tray, bar);
         tray.removeAttribute(MOVED_ATTR);
       }
+      // Defensive: never restore cards INTO a relocated bar.
+      if (tray && tray.closest('.' + BAR_CLASS)) tray = null;
       if (tray) {
         bar.querySelectorAll('[' + MOVED_ATTR + ']').forEach((item) => {
           item.removeAttribute(MOVED_ATTR);
           tray.appendChild(item);
         });
       }
-      // Only drop a bar that holds no relocated cards — never destroy attachments.
+      // Drop the bar only once it holds no relocated cards. If no native tray was
+      // found, leave the bar (with its cards) in place — reload restores Gmail's
+      // layout; NEVER remove a bar that still contains attachments.
       if (!bar.querySelector('[' + MOVED_ATTR + ']')) bar.remove();
     });
     document.querySelectorAll('[' + FALLBACK_ATTR + ']').forEach((el) => el.removeAttribute(FALLBACK_ATTR));

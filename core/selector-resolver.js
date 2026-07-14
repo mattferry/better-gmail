@@ -126,7 +126,8 @@
     if (!body) return null;
     const btns = qa('a[download], [aria-label]', scope).filter((el) =>
       (el.hasAttribute('download') || /^download attachment/i.test(el.getAttribute('aria-label') || '')) &&
-      !body.contains(el));
+      !body.contains(el) &&
+      !el.closest('.ob-attachments-bar')); // never treat OUR OWN relocated bar as the tray (QA finding)
     if (!btns.length) return null;
     // Climb to the highest element whose PARENT still contains the message body
     // (or hits the scope boundary): that element sits beside the body's branch —

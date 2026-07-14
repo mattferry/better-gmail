@@ -124,18 +124,33 @@
   // SVGs, not text), so inheriting `color` renders black-on-dark — luminance of
   // the real background is the reliable signal (field fix 2026-07-14).
   function readableTextColor(el) {
+    // Collect the stacked background layers from el up to <html>, then COMPOSITE
+    // them over an opaque backdrop and judge the result's luminance. Gmail's dark
+    // toolbar paints a TRANSLUCENT fill — rgba(51,51,51,0.8) — over the page
+    // backdrop, so neither "use the first near-opaque layer" nor "stop before
+    // <html>" works: both defaulted to white and rendered our buttons
+    // black-on-dark (field bug 2026-07-14, live-diagnosed). Compositing the 0.8
+    // dark layer over white yields ~rgb(92) -> dark -> light text.
+    const layers = [];
     let n = el;
-    let rgb = [255, 255, 255];
-    while (n && n !== document.documentElement) {
+    while (n) {
       const bg = getComputedStyle(n).backgroundColor;
       const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-      // Only a near-opaque layer defines the effective background. A translucent
-      // fill (0<a<1) sits over whatever is behind it, so keep walking — using its
-      // uncomposited RGB would pick the wrong contrast (finding, verified).
-      if (m && (m[4] === undefined || parseFloat(m[4]) >= 0.9)) { rgb = [+m[1], +m[2], +m[3]]; break; }
+      if (m) {
+        const a = m[4] === undefined ? 1 : parseFloat(m[4]);
+        if (a > 0) layers.push({ r: +m[1], g: +m[2], b: +m[3], a });
+      }
+      if (n === document.documentElement) break;
       n = n.parentElement;
     }
-    const lum = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+    let r = 255, g = 255, b = 255; // Chrome's default page backdrop
+    for (let i = layers.length - 1; i >= 0; i--) { // back (root) to front (el)
+      const L = layers[i];
+      r = L.r * L.a + r * (1 - L.a);
+      g = L.g * L.a + g * (1 - L.a);
+      b = L.b * L.a + b * (1 - L.a);
+    }
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
     return lum < 128 ? '#e8eaed' : '#202124';
   }
 

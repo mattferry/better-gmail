@@ -23,6 +23,7 @@
   // dark-on-dark labels — better left as Gmail renders it.
   const SURFACE_ATTR = 'data-ob-dark-surface';
   const EDITOR_ATTR = 'data-ob-dark-editor';
+  const INVERT_ATTR = 'data-ob-dark-invert';
   let triggersWired = false;
   let debounceTimer = null;
 
@@ -73,10 +74,36 @@
     document.querySelectorAll('.ii').forEach((ii) => {
       let el = ii.parentElement;
       while (el && el !== document.body) {
+        // Split/preview-pane guard: if this ancestor also holds the message LIST
+        // (tr.zA rows), it's a shared list+thread container — stamping it would
+        // darken the list. Stop before it (QA finding).
+        if (el.querySelector('tr.zA')) break;
         if (isOpaqueLight(el)) stamp(el);
         if (el.getAttribute('role') === 'main') break;
         el = el.parentElement;
       }
+    });
+
+    // A2) the reply/action bar and footer strips — wide light bands in the thread
+    // that are NOT the body and NOT the card margin. INVERT them (mark
+    // data-ob-dark-invert): inversion flips their button text and icons light
+    // automatically, which a background-stamp + class whitelist can't do
+    // reliably (that left them white before — field report). They contain no
+    // .ii, so there is no double-invert. Top-level bands only (a band contained
+    // by another marked band would double-invert).
+    document.querySelectorAll('div[role="main"]').forEach((main) => {
+      if (!main.querySelector('.ii')) return;      // list-only main — skip
+      if (main.querySelector('tr.zA')) return;     // split-pane — leave the list
+      const minW = main.getBoundingClientRect().width * 0.5;
+      if (!minW) return;
+      const bands = [];
+      main.querySelectorAll('div, table').forEach((el) => {
+        if (el.querySelector('.ii') || el.closest('.ii') || el.closest('[' + EDITOR_ATTR + ']')) return;
+        if (el.offsetWidth > minW && el.offsetHeight > 8 && isOpaqueLight(el)) bands.push(el);
+      });
+      bands.forEach((el) => {
+        if (!bands.some((o) => o !== el && o.contains(el))) el.setAttribute(INVERT_ATTR, '');
+      });
     });
 
     // B) compose windows (bottom popup, popout, inline reply): darken the light
@@ -95,8 +122,8 @@
   }
 
   function clearSurfaces() {
-    document.querySelectorAll('[' + SURFACE_ATTR + '],[' + EDITOR_ATTR + ']').forEach((el) => {
-      el.removeAttribute(SURFACE_ATTR); el.removeAttribute(EDITOR_ATTR);
+    document.querySelectorAll('[' + SURFACE_ATTR + '],[' + EDITOR_ATTR + '],[' + INVERT_ATTR + ']').forEach((el) => {
+      el.removeAttribute(SURFACE_ATTR); el.removeAttribute(EDITOR_ATTR); el.removeAttribute(INVERT_ATTR);
     });
   }
 

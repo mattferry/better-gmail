@@ -36,6 +36,17 @@ html[data-ob-dark="on"] [data-ob-dark-surface] .y2 {
   color: #e8eaed !important;
 }
 
+/* Reply/action bar and footer strips — inverted (not stamped) so their button
+   text and icons flip light automatically; they contain no .ii, so no
+   double-invert. Media inside gets un-inverted back to normal. */
+html[data-ob-dark="on"] [data-ob-dark-invert] {
+  filter: invert(1) hue-rotate(180deg);
+}
+html[data-ob-dark="on"] [data-ob-dark-invert] img,
+html[data-ob-dark="on"] [data-ob-dark-invert] video {
+  filter: invert(1) hue-rotate(180deg);
+}
+
 /* Compose editors (bottom popup, popout, inline reply) — scoped by JS to real
    Gmail compose via data-ob-dark-editor, so Chat/Keep/Tasks contenteditable
    boxes in side panels are never inverted (field fix 2026-07-14). #e0e0e0
@@ -49,11 +60,12 @@ html[data-ob-dark="on"] [data-ob-dark-editor] video {
   filter: invert(1) hue-rotate(180deg);
 }
 /* Compose To/Subject inputs: light text on the stamped compose chrome. Scoped
-   to a stamped surface that contains a marked editor (a compose window), so it
-   can't reach inputs inside a read email body (finding). Gmail's .aoT color
+   with :has() to a stamped surface that actually contains a marked compose
+   editor, so it can NOT reach form inputs inside a read email body (which the
+   .ii invert would then flip to near-black — QA finding). Gmail's .aoT color
    carries no !important, so ours wins. */
-html[data-ob-dark="on"] [data-ob-dark-surface] input,
-html[data-ob-dark="on"] [data-ob-dark-surface] textarea {
+html[data-ob-dark="on"] [data-ob-dark-surface]:has([data-ob-dark-editor]) input,
+html[data-ob-dark="on"] [data-ob-dark-surface]:has([data-ob-dark-editor]) textarea {
   color: #e8eaed !important;
   background: transparent;
   caret-color: #e8eaed !important;
