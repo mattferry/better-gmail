@@ -20,7 +20,7 @@
   // data-ob-dark-surface; dark-mode.css turns stamped surfaces dark with a
   // plain background (never a filter). Self-tuning: no Gmail classes needed.
   const SURFACE_ATTR = 'data-ob-dark-surface';
-  let observer = null;
+  let triggersWired = false;
   let debounceTimer = null;
 
   function isLightBg(el) {
@@ -91,26 +91,43 @@
     document.querySelectorAll('[' + SURFACE_ATTR + ']').forEach((el) => el.removeAttribute(SURFACE_ATTR));
   }
 
-  // Compose windows appear without a navigation, and Gmail re-renders cards, so
-  // surfaces are re-stamped on DOM changes — debounced, and fully disconnected
-  // while dark mode is off so the observer costs nothing when unused.
+  function scheduleRefresh() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(refreshSurfaces, 150);
+  }
+
+  // A thread's message body renders after the navigation fires (more so on slow
+  // machines), so refresh once quickly and once late to catch the body — two
+  // bounded passes per thread open, far cheaper than a per-mutation observer.
+  function scheduleNavRefresh() {
+    setTimeout(refreshSurfaces, 250);
+    setTimeout(refreshSurfaces, 1000);
+  }
+
+  // Surfaces change on exactly two user actions: opening/closing a thread
+  // (router navigation) and opening a compose/reply (focus lands in the
+  // editor/fields). We drive off those events instead of a document.body
+  // MutationObserver — that whole-page observer is the hot path router.js
+  // documents removing, and adding it back would worsen the lag on weak
+  // machines this extension targets (field decision 2026-07-14).
   function syncSurfaces() {
     const on = document.documentElement.getAttribute('data-ob-dark') === 'on' &&
                document.documentElement.getAttribute('data-ob-host') === 'gmail';
-    if (on) {
-      refreshSurfaces();
-      if (!observer) {
-        observer = new MutationObserver(() => {
-          clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(refreshSurfaces, 300);
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-      }
-    } else {
-      if (observer) { observer.disconnect(); observer = null; }
-      clearTimeout(debounceTimer);
-      clearSurfaces();
+    if (!on) { clearTimeout(debounceTimer); clearSurfaces(); return; }
+    refreshSurfaces();
+    if (triggersWired) return;
+    triggersWired = true;
+    if (window.__OB && window.__OB.router && typeof window.__OB.router.onNavigate === 'function') {
+      window.__OB.router.onNavigate(scheduleNavRefresh);
     }
+    // focusin bubbles, fires when a compose/reply editor or its fields gain
+    // focus — cheap, and exactly when compose chrome needs stamping.
+    document.addEventListener('focusin', (e) => {
+      if (e.target && e.target.closest &&
+          e.target.closest('div[role="dialog"], div[contenteditable="true"][role="textbox"]')) {
+        scheduleRefresh();
+      }
+    }, true);
   }
 
   let wired = false;
