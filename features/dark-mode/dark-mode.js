@@ -11,103 +11,93 @@
     syncSurfaces();
   }
 
-  // ---- surface stamping (field fix 2026-07-14) ----
-  // The invert rule can only cover the message BODY (.ii) — inverting any
-  // ancestor would compose with it and flip the body back to light (the
-  // original day-one bug). But Gmail's chrome around the body (the message
-  // card, the reply bar, compose windows) stays white in a light theme. So:
-  // find the light-background chrome at runtime and stamp it with
-  // data-ob-dark-surface; dark-mode.css turns stamped surfaces dark with a
-  // plain background (never a filter). Self-tuning: no Gmail classes needed.
+  // ---- surface stamping (field fix 2026-07-14, hardened after QA) ----
+  // The body (.ii) is inverted by a static CSS rule — reliable, no flash. But
+  // Gmail keeps "paper" surfaces white even in its own dark theme: the message
+  // card MARGIN around the body, and compose windows. We darken that chrome at
+  // runtime: mark the light-background card/compose chrome with
+  // data-ob-dark-surface (CSS gives it a plain dark background — never a filter,
+  // which would double-invert the body it contains) and recolor the known header
+  // text light. The reply/action bar is deliberately NOT stamped: its buttons
+  // carry text we can't reliably recolor, so darkening it would produce
+  // dark-on-dark labels — better left as Gmail renders it.
   const SURFACE_ATTR = 'data-ob-dark-surface';
+  const EDITOR_ATTR = 'data-ob-dark-editor';
   let triggersWired = false;
   let debounceTimer = null;
 
-  function isLightBg(el) {
+  // Opaque light background only: a translucent fill (0<a<1) sits over whatever
+  // is behind it, so its raw RGB isn't the effective color (QA finding).
+  function isOpaqueLight(el) {
     const bg = getComputedStyle(el).backgroundColor;
     const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
     if (!m) return false;
-    if (m[4] !== undefined && parseFloat(m[4]) === 0) return false; // transparent
+    if (m[4] !== undefined && parseFloat(m[4]) < 0.9) return false; // transparent/translucent
     return (+m[1] + +m[2] + +m[3]) / 3 > 200;
   }
 
   function stamp(el) {
+    // Never stamp inside an inverted region (.ii body or a marked compose
+    // editor): a dark background under the invert filter flips to light. Guards
+    // EVERY stamp site (QA finding).
+    if (el.closest('.ii') || el.closest('[' + EDITOR_ATTR + ']')) return;
     if (!el.hasAttribute(SURFACE_ATTR)) el.setAttribute(SURFACE_ATTR, '');
   }
 
-  // Never stamp inside an inverted region (.ii body or a compose editor): a dark
-  // background on an element the invert filter also covers would flip to light.
-  function invertedContainer(el) {
-    return el.closest('.ii') || el.closest('div[contenteditable="true"][role="textbox"]');
+  // A Gmail compose/reply editor (not a Chat/Keep/Tasks contenteditable, which
+  // live in role=complementary side panels): the editor sits in a compose
+  // dialog or in the mail reading pane (inline reply), never a side panel.
+  function isComposeEditor(editor) {
+    if (editor.closest('[role="complementary"], [role="navigation"]')) return false;
+    return !!editor.closest('div[role="dialog"], div[role="main"]');
   }
 
   function refreshSurfaces() {
     if (document.documentElement.getAttribute('data-ob-dark') !== 'on' ||
         document.documentElement.getAttribute('data-ob-host') !== 'gmail') return;
 
-    // Re-derive from scratch every time: role=main is REUSED across the list and
-    // thread views, so a stamp applied while a thread was open would otherwise
-    // persist onto the inbox list after navigating back (darkening it). Clearing
-    // first, then re-stamping only what's currently valid, is correct and — since
-    // this runs only on navigation/focus, not per-mutation — cheap. No repaint
-    // happens between the clear and the re-stamp (one synchronous pass).
+    // Re-derive from scratch: role=main is REUSED across list and thread views,
+    // so a mark applied with a thread open would otherwise persist onto the inbox
+    // list after navigating back (darkening it). Clear then re-derive — runs on
+    // navigation/focus only, and no repaint happens mid-pass (one sync run).
     clearSurfaces();
 
-    // Read-mode chrome (A/A2) only when a message body is actually open. In the
-    // inbox LIST view there is no .ii, and scanning role=main there would stamp
-    // the inbox list itself — darkening chrome the feature must leave to Gmail's
-    // own theme (a real overreach in light-theme Gmail). Compose (B) is
-    // independent and runs whenever a compose/reply is open.
-    const bodies = document.querySelectorAll('.ii');
-    if (bodies.length) {
-      // A) the message card: walk up from each body toward role=main, stamping
-      // light chrome. The invertedContainer guard skips any ancestor that is
-      // itself inside another inverted region (e.g. a read .ii quoted inside a
-      // compose editor) — stamping there would double-darken under the filter.
-      bodies.forEach((ii) => {
-        let el = ii.parentElement;
-        while (el && el !== document.body) {
-          if (!invertedContainer(el) && isLightBg(el)) stamp(el);
-          if (el.getAttribute('role') === 'main') break;
-          el = el.parentElement;
-        }
-      });
-
-      // A2) residual wide light bands in the open thread (reply/action bar,
-      // footer strips) not on the card's ancestor chain. The offset size gate
-      // runs BEFORE getComputedStyle so the expensive read only touches the few
-      // wide elements. Scoped to a main that actually contains an open body.
-      document.querySelectorAll('div[role="main"]').forEach((main) => {
-        if (!main.querySelector('.ii')) return; // list-only main — skip
-        const minW = main.getBoundingClientRect().width * 0.5;
-        if (!minW) return;
-        main.querySelectorAll('div').forEach((el) => {
-          if (el.offsetWidth > minW && el.offsetHeight > 8 &&
-              !el.hasAttribute(SURFACE_ATTR) && !invertedContainer(el) && isLightBg(el)) {
-            stamp(el);
-          }
-        });
-      });
-    }
-
-    // B) compose windows (bottom popup, popout dialog, inline reply). The header
-    // fields (To/Subject) live in a sibling branch of the editor with transparent
-    // backgrounds — the visible white is on the dialog/a wrapper — so stamp the
-    // whole compose root and its light chrome (excluding the inverted editor).
+    // Mark real Gmail compose editors FIRST so stamp()'s editor guard sees them.
     document.querySelectorAll('div[contenteditable="true"][role="textbox"]').forEach((editor) => {
+      if (isComposeEditor(editor)) editor.setAttribute(EDITOR_ATTR, '');
+    });
+
+    // A) the message card MARGIN: walk up from each open body toward role=main,
+    // darkening the light card chrome around it. Only ancestors of an open .ii —
+    // never the inbox list (there is no .ii there). stamp() guards nesting.
+    document.querySelectorAll('.ii').forEach((ii) => {
+      let el = ii.parentElement;
+      while (el && el !== document.body) {
+        if (isOpaqueLight(el)) stamp(el);
+        if (el.getAttribute('role') === 'main') break;
+        el = el.parentElement;
+      }
+    });
+
+    // B) compose windows (bottom popup, popout, inline reply): darken the light
+    // chrome around each marked editor (the To/Subject fields sit in a sibling
+    // branch with transparent backgrounds; the visible white is on the dialog).
+    document.querySelectorAll('[' + EDITOR_ATTR + ']').forEach((editor) => {
       const root = editor.closest('div[role="dialog"]') || editor.parentElement;
       if (!root) return;
       stamp(root);
-      let up = root.parentElement, hops = 0; // catch a white wrapper above the dialog
-      while (up && up !== document.body && hops++ < 4) { if (isLightBg(up)) stamp(up); up = up.parentElement; }
+      let up = root.parentElement, hops = 0; // a white wrapper above the dialog
+      while (up && up !== document.body && hops++ < 4) { if (isOpaqueLight(up)) stamp(up); up = up.parentElement; }
       root.querySelectorAll('div, td, table, form').forEach((el) => {
-        if (!invertedContainer(el) && isLightBg(el)) stamp(el);
+        if (isOpaqueLight(el)) stamp(el);
       });
     });
   }
 
   function clearSurfaces() {
-    document.querySelectorAll('[' + SURFACE_ATTR + ']').forEach((el) => el.removeAttribute(SURFACE_ATTR));
+    document.querySelectorAll('[' + SURFACE_ATTR + '],[' + EDITOR_ATTR + ']').forEach((el) => {
+      el.removeAttribute(SURFACE_ATTR); el.removeAttribute(EDITOR_ATTR);
+    });
   }
 
   function scheduleRefresh() {

@@ -119,9 +119,14 @@
     const scope = root || document;
     if (!scope.querySelectorAll) return null;
     const body = scope.querySelector('.a3s.aiL, .a3s');
+    // The climb below keys off "parent still contains the body" — without a body
+    // it has no stop condition and would run to the top, returning some large
+    // message-chrome wrapper (which teardown could then re-home cards into, and
+    // learn() would cache). No body anchor -> no probe (QA finding).
+    if (!body) return null;
     const btns = qa('a[download], [aria-label]', scope).filter((el) =>
       (el.hasAttribute('download') || /^download attachment/i.test(el.getAttribute('aria-label') || '')) &&
-      (!body || !body.contains(el)));
+      !body.contains(el));
     if (!btns.length) return null;
     // Climb to the highest element whose PARENT still contains the message body
     // (or hits the scope boundary): that element sits beside the body's branch —

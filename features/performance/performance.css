@@ -1,23 +1,22 @@
 /* Performance mode — applied only when html[data-ob-perf] is set (zero cost off). */
 
-/* Gmail's hover/pane animations are a major jank source on weak hardware.
-   Near-zero durations keep animation-driven logic working (end events still
-   fire) while removing the per-frame work. */
+/* Gmail's hover/pane TRANSITIONS are the main jank source on weak hardware.
+   `transition: none` removes them cleanly — unlike a ~0ms duration, it creates
+   no running transition, so same-frame write-then-measure JS (menu positioning,
+   drag math) still reads final values, and no transitionstart/end event storm
+   fires (QA finding). Animations (loading spinners) are left alone: forcing a
+   tiny animation-duration restarts infinite ones every frame — the opposite of
+   the goal. */
 html[data-ob-perf] *,
 html[data-ob-perf] *::before,
 html[data-ob-perf] *::after {
-  animation-duration: 0.001s !important;
-  transition-duration: 0.001s !important;
-  animation-delay: 0s !important;
-  transition-delay: 0s !important;
+  transition: none !important;
 }
 html[data-ob-perf] {
   scroll-behavior: auto !important;
 }
 
-/* Skip layout/paint for message-list rows outside the viewport. The intrinsic
-   size keeps the scrollbar stable; Chrome manages find-in-page/anchoring. */
-html[data-ob-perf] div[role="main"] tr[role="row"] {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 40px;
-}
+/* Note (2026-07-14): content-visibility was removed. Gmail's message-list rows
+   are real <tr> elements, and per css-contain size/layout containment does not
+   apply to internal table boxes, so content-visibility:auto on a <tr> is inert —
+   it skipped nothing. Cutting transitions is the real, safe win here. */

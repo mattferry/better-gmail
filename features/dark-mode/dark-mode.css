@@ -13,37 +13,50 @@ html[data-ob-dark="on"] .ii video {
   filter: invert(1) hue-rotate(180deg);
 }
 
-/* Gmail chrome around the body — message card, reply bar, compose windows —
-   stamped at runtime by dark-mode.js (field fix 2026-07-14: the card kept a
-   white ring around the inverted body). Plain dark background, NEVER a filter:
-   an inverted ancestor of .ii would double-invert the body back to light. */
+/* Message-card MARGIN and compose chrome that Gmail keeps white even in its dark
+   theme — stamped at runtime by dark-mode.js. Plain dark background, NEVER a
+   filter: an inverted ancestor of .ii would double-invert the body back to
+   light. The card's header text (dark on white paper) is recolored light. */
 html[data-ob-dark="on"] [data-ob-dark-surface] {
   background-color: #1f1f1f !important;
 }
+/* Recolor the message-header chrome text sitting on a stamped surface. These are
+   card-header classes (subject, sender name/email, date, recipients, snippet,
+   expander) — NOT body classes, so this never reaches into the inverted .ii. */
 html[data-ob-dark="on"] [data-ob-dark-surface] h2.hP,
 html[data-ob-dark="on"] [data-ob-dark-surface] .gD,
 html[data-ob-dark="on"] [data-ob-dark-surface] .go,
 html[data-ob-dark="on"] [data-ob-dark-surface] .g3,
-html[data-ob-dark="on"] [data-ob-dark-surface] .hb {
+html[data-ob-dark="on"] [data-ob-dark-surface] .gI,
+html[data-ob-dark="on"] [data-ob-dark-surface] .qu,
+html[data-ob-dark="on"] [data-ob-dark-surface] .hb,
+html[data-ob-dark="on"] [data-ob-dark-surface] .g2,
+html[data-ob-dark="on"] [data-ob-dark-surface] .ajz,
+html[data-ob-dark="on"] [data-ob-dark-surface] .y2 {
   color: #e8eaed !important;
 }
-html[data-ob-dark="on"] [data-ob-dark-surface] input,
-html[data-ob-dark="on"] [data-ob-dark-surface] textarea {
-  color: #e8eaed !important;      /* beat Gmail's .aoT { color:#222 } on compose fields */
-  background: transparent;
-  caret-color: #e8eaed !important;
-}
 
-/* Compose editors (bottom popup, popout, inline reply): same invert treatment
-   as read bodies (field fix 2026-07-14). #e0e0e0 inverts to the same #1f1f1f
-   as the stamped chrome, so the editor blends into the compose window. */
-html[data-ob-dark="on"] div[contenteditable="true"][role="textbox"] {
+/* Compose editors (bottom popup, popout, inline reply) — scoped by JS to real
+   Gmail compose via data-ob-dark-editor, so Chat/Keep/Tasks contenteditable
+   boxes in side panels are never inverted (field fix 2026-07-14). #e0e0e0
+   inverts to the same #1f1f1f as the stamped chrome, so the editor blends in. */
+html[data-ob-dark="on"] [data-ob-dark-editor] {
   filter: invert(1) hue-rotate(180deg);
   background: #e0e0e0;
 }
-html[data-ob-dark="on"] div[contenteditable="true"][role="textbox"] img,
-html[data-ob-dark="on"] div[contenteditable="true"][role="textbox"] video {
+html[data-ob-dark="on"] [data-ob-dark-editor] img,
+html[data-ob-dark="on"] [data-ob-dark-editor] video {
   filter: invert(1) hue-rotate(180deg);
+}
+/* Compose To/Subject inputs: light text on the stamped compose chrome. Scoped
+   to a stamped surface that contains a marked editor (a compose window), so it
+   can't reach inputs inside a read email body (finding). Gmail's .aoT color
+   carries no !important, so ours wins. */
+html[data-ob-dark="on"] [data-ob-dark-surface] input,
+html[data-ob-dark="on"] [data-ob-dark-surface] textarea {
+  color: #e8eaed !important;
+  background: transparent;
+  caret-color: #e8eaed !important;
 }
 
 /* Calendar: invert residual white surfaces only (native dark handles the rest). */
