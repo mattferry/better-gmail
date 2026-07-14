@@ -528,7 +528,7 @@
         const startRow = startCell.parentElement.rowIndex;
         const endRow = currentCell.parentElement.rowIndex;
         const startCol = startCell.cellIndex;
-        const endCol = startCell.cellIndex;
+        const endCol = currentCell.cellIndex; // audit fix 2026-07-14: was startCell — drag-select was locked to one column
 
         const minR = Math.min(startRow, endRow);
         const maxR = Math.max(startRow, endRow);
@@ -595,8 +595,17 @@
 
         columnsData.forEach(val => {
           if (targetCell) {
-            const cleanContent = val.replace(/\r?\n/g, '<br>');
-            targetCell.innerHTML = cleanContent || '&nbsp;';
+            // Build the cell content as text nodes + <br>s — clipboard text must
+            // never be parsed as HTML (audit fix 2026-07-14).
+            targetCell.textContent = '';
+            if (val) {
+              val.split(/\r?\n/).forEach((line, idx) => {
+                if (idx) targetCell.appendChild(document.createElement('br'));
+                if (line) targetCell.appendChild(document.createTextNode(line));
+              });
+            } else {
+              targetCell.textContent = ' '; // nbsp keeps the empty cell from collapsing
+            }
 
             targetCell.style.fontFamily = 'sans-serif';
             targetCell.style.fontSize = '13px';

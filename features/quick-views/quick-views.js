@@ -22,13 +22,16 @@
 
   function buildBar() {
     const bar = document.createElement('div');
-    bar.style.cssText = 'display:inline-flex;gap:6px;margin-left:8px;';
+    // Compact: the Gmail toolbar strip is ~20px tall (live-measured 2026-07-14).
+    bar.style.cssText = 'display:inline-flex;gap:4px;margin-left:6px;align-items:center;vertical-align:middle;';
     for (const v of VIEWS) {
       const chip = document.createElement('button');
       chip.textContent = v.label;
-      chip.style.cssText = 'border:1px solid rgba(0,0,0,.2);border-radius:12px;padding:2px 10px;' +
-        'background:transparent;cursor:pointer;font:12px system-ui;';
-      chip.addEventListener('click', guard('chip:' + v.label, () => runSearch(v.q)));
+      chip.style.cssText = 'border:1px solid rgba(128,128,128,.5);border-radius:10px;padding:0 8px;' +
+        'background:transparent;cursor:pointer;font:11px/16px system-ui;color:inherit;flex:0 0 auto;';
+      // stopPropagation so the click can't double-fire into Gmail's own delegated
+      // toolbar handlers (parity with the folder-illusionist button).
+      chip.addEventListener('click', guard('chip:' + v.label, (e) => { e.stopPropagation(); runSearch(v.q); }));
       bar.appendChild(chip);
     }
     return bar;
@@ -65,6 +68,12 @@
 
   function initDensity() {
     return window.__OB.settings.get('compactDensity').then((on) => {
+      // quick-views.css keys off data-ob-host as well; set it here so compact
+      // density doesn't silently depend on dark-mode's init having run first.
+      if (!document.documentElement.hasAttribute('data-ob-host')) {
+        document.documentElement.setAttribute('data-ob-host',
+          location.host === 'calendar.google.com' ? 'calendar' : 'gmail');
+      }
       document.documentElement.toggleAttribute('data-ob-compact', !!on);
     }).catch((e) => console.log('[OB] quick-views: density init failed', e));
   }
@@ -75,7 +84,7 @@
   function init() {
     const OB = window.__OB;
     OB.settings.get('quickViews')
-      .then((on) => { if (on) OB.ui.ensureChild(OB.gmail.getToolbar(), BAR_ID, buildBar); else OB.ui.removeById(BAR_ID); })
+      .then((on) => { if (on) OB.ui.ensureChild(OB.gmail.getToolbarInsertionPoint(), BAR_ID, buildBar); else OB.ui.removeById(BAR_ID); })
       .catch((e) => console.log('[OB] quick-views: init failed', e));
     initDensity();
     refreshConfirmDelete();

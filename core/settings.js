@@ -31,13 +31,24 @@
   function getAll() {
     return new Promise((resolve) => {
       if (typeof chrome === 'undefined' || !chrome.storage) return resolve(mergeDefaults(null));
-      chrome.storage.sync.get(null, (stored) => resolve(mergeDefaults(stored)));
+      chrome.storage.sync.get(null, (stored) => {
+        if (chrome.runtime && chrome.runtime.lastError) {
+          console.warn('[OB] settings: read failed, using defaults:', chrome.runtime.lastError.message);
+          return resolve(mergeDefaults(null));
+        }
+        resolve(mergeDefaults(stored));
+      });
     });
   }
   function set(key, val) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       if (typeof chrome === 'undefined' || !chrome.storage) return resolve();
-      chrome.storage.sync.set({ [key]: val }, () => resolve());
+      chrome.storage.sync.set({ [key]: val }, () => {
+        // Surface write failures (e.g. the sync write-rate limit) instead of
+        // silently reporting "Saved." (audit fix 2026-07-14).
+        if (chrome.runtime && chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+        resolve();
+      });
     });
   }
   function onChange(cb) {

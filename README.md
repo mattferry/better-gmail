@@ -116,13 +116,22 @@ forwards them into the tab.
 ## Maintenance
 
 Because Better Gmail works around the missing API by driving Gmail's DOM, a Gmail HTML change
-can break a feature. When that happens:
+can break a feature. As of v0.3.0 the fragile lookups **self-tune**: every toolbar/dropdown/
+search control goes through `core/selector-resolver.js`, which tries the static selector,
+then a previously-learned selector cached in `chrome.storage.local`, then a semantic probe
+that finds the control by meaning (aria-label patterns, role + structure) and learns a new
+selector from whatever it finds. Most Gmail markup changes heal themselves on the next load.
+
+When something still breaks:
 
 - Open Gmail, open DevTools → Console, filter for `[OB]`.
-- A `[OB] self-test: selectors not found …` warning tells you exactly which selector broke.
-- Fix is almost always a one-line update in the relevant adapter's `SELECTORS` map
-  (`core/gmail-adapter.js` / `core/calendar-adapter.js`) — features never hardcode selectors
-  anywhere else.
+- `[OB] resolver: learned selector for "…"` means a static selector drifted and the
+  extension healed itself — copy the learned value into the static list when convenient.
+- `[OB] self-test: resolver could not find (real drift)` or a
+  `[OB] self-test: critical selectors not found …` warning tells you exactly what broke.
+- The fix is a one-line update: a `SELECTORS` entry (`core/gmail-adapter.js` /
+  `core/calendar-adapter.js`) or a role's candidates/probe in `core/selector-resolver.js` —
+  features never hardcode selectors anywhere else.
 
 **Rolling it out to a team:** you can force-install this for a whole org via Chrome
 enterprise policy (`ExtensionInstallForcelist` pointing at a self-hosted `.crx` or a private

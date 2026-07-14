@@ -1,7 +1,11 @@
 window.GMAIL_CAPITALIZER_DICTIONARY =
   window.GMAIL_CAPITALIZER_DICTIONARY || {};
 
-window.GMAIL_CAPITALIZER_DICTIONARY.acronyms = [
+// MERGE with (never replace) the base list from dictionary.js — a plain
+// reassignment here silently dropped base acronyms like IVR/URL/SOP (audit fix
+// 2026-07-14).
+window.GMAIL_CAPITALIZER_DICTIONARY.acronyms = [...new Set([
+  ...(window.GMAIL_CAPITALIZER_DICTIONARY.acronyms || []),
 
   // ===========================
   // ITSM / INCIDENT MANAGEMENT
@@ -251,4 +255,4 @@ window.GMAIL_CAPITALIZER_DICTIONARY.acronyms = [
   "Webex",
   "Connect"
 
-];
+])];

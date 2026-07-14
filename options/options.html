@@ -4,33 +4,34 @@
 <body>
   <h1>Better Gmail settings</h1>
   <section>
-    <label>Dark mode
+    <label>Dark mode <span class="hint">(darkens the bodies of opened emails — Gmail's own theme handles the rest of the UI)</span>
       <select id="darkMode">
-        <option value="on">On</option>
+        <option value="on" selected>On</option>
         <option value="off">Off</option>
         <option value="system">Follow system</option>
       </select>
     </label>
-    <label><input type="checkbox" id="darkModeGmail"> Dark mode in Gmail</label>
-    <label><input type="checkbox" id="darkModeCalendar"> Dark mode in Calendar</label>
+    <label><input type="checkbox" id="darkModeGmail" checked> Dark mode in Gmail</label>
+    <label><input type="checkbox" id="darkModeCalendar" checked> Dark mode in Calendar</label>
   </section>
   <section>
-    <label><input type="checkbox" id="folderIllusionist"> Move-to-Folder button</label>
-    <label><input type="checkbox" id="contextMenu"> Enhanced right-click menu</label>
-    <label><input type="checkbox" id="categories"> Color categories</label>
-    <label><input type="checkbox" id="quickViews"> Quick views</label>
-    <label><input type="checkbox" id="confirmBeforeDelete"> Confirm before permanent delete</label>
+    <label><input type="checkbox" id="folderIllusionist" checked> Move-to-Folder button</label>
+    <label><input type="checkbox" id="contextMenu" checked> Enhanced right-click menu</label>
+    <label class="sub"><input type="checkbox" id="categories" checked> Color categories <span class="hint">(a "Categorize…" item in the right-click menu — needs the menu enabled)</span></label>
+    <label><input type="checkbox" id="quickViews" checked> Quick views</label>
+    <label><input type="checkbox" id="confirmBeforeDelete" checked> Confirm before permanent delete</label>
     <label><input type="checkbox" id="compactDensity"> Compact density</label>
   </section>
   <section>
-    <label><input type="checkbox" id="attachmentsTop"> Attachments bar at the top of emails</label>
-    <label><input type="checkbox" id="autoCapitalize"> Auto-capitalize while composing <span class="hint">(add words: right-click or Ctrl+Shift+A)</span></label>
-    <label><input type="checkbox" id="formatPainter"> Format painter <span class="hint">(right-click or Alt+C / Alt+V)</span></label>
-    <label><input type="checkbox" id="tableInserter"> Table tools in compose toolbar</label>
-    <label><input type="checkbox" id="outlookReply"> Outlook-style reply headers (From / Sent / To / Subject)</label>
-    <label class="sub"><input type="checkbox" id="outlookReplyButton"> Also show a manual convert button in compose</label>
+    <label><input type="checkbox" id="attachmentsTop" checked> Attachments bar at the top of emails</label>
+    <label><input type="checkbox" id="autoCapitalize" checked> Auto-capitalize while composing <span class="hint">(add words: right-click or Ctrl+Shift+A)</span></label>
+    <label><input type="checkbox" id="formatPainter" checked> Format painter <span class="hint">(right-click or Alt+C / Alt+V)</span></label>
+    <label><input type="checkbox" id="tableInserter" checked> Table tools in compose toolbar</label>
+    <label><input type="checkbox" id="outlookReply" checked> Outlook-style reply headers (From / Sent / To / Subject)</label>
+    <label class="sub"><input type="checkbox" id="outlookReplyButton"> Show a manual convert button in compose <span class="hint">(works with auto-convert on or off)</span></label>
   </section>
   <p id="saved" hidden>Saved.</p>
+  <p id="savefail" hidden>Save failed — the change was not stored. Try again.</p>
   <script src="../core/settings.js"></script>
   <script src="options.js"></script>
 </body>

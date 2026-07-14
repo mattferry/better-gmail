@@ -5,12 +5,23 @@
   function buildButton() {
     const btn = document.createElement('div');
     btn.textContent = '📁 Move to Folder';
-    btn.style.cssText = 'cursor:pointer;padding:6px 10px;margin:0 6px;border-radius:6px;' +
-      'font:13px system-ui;display:inline-flex;align-items:center;background:rgba(0,0,0,.05);';
-    btn.addEventListener('click', (e) => {
+    // Keyboard-accessible (it's a div so it inherits Gmail's toolbar look, but it
+    // must still behave like a button), and compact: the Gmail toolbar strip is
+    // only ~20px tall (live-measured 2026-07-14) — anything taller overflows onto
+    // the first message row.
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('tabindex', '0');
+    btn.style.cssText = 'cursor:pointer;padding:1px 8px;margin:0 4px;border-radius:10px;' +
+      'font:12px/16px system-ui;display:inline-flex;align-items:center;flex:0 0 auto;' +
+      'background:rgba(128,128,128,.15);vertical-align:middle;';
+    const open = (e) => {
       e.stopPropagation();
       const r = btn.getBoundingClientRect();
       openPickerAt(r.left, r.bottom + 4);
+    };
+    btn.addEventListener('click', open);
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); }
     });
     return btn;
   }
@@ -35,8 +46,10 @@
 
   function moveTo(fullName) {
     const OB = window.__OB;
-    const ok = OB.gmail.clickMoveTo(fullName);
-    OB.ui.toast(ok ? ('Moved to ' + fullName) : ('Could not move to ' + fullName));
+    // clickMoveTo is async — Gmail renders the native dropdown after the click.
+    Promise.resolve(OB.gmail.clickMoveTo(fullName))
+      .then((ok) => OB.ui.toast(ok ? ('Moved to ' + fullName) : ('Could not move to ' + fullName)))
+      .catch((e) => { console.warn('[OB] folder-illusionist: move failed', e); OB.ui.toast('Could not move to ' + fullName); });
   }
 
   // Idempotent + reversible: injects the button when enabled, removes it when
@@ -44,7 +57,7 @@
   function init() {
     const OB = window.__OB;
     return OB.settings.get('folderIllusionist')
-      .then((on) => { if (on) OB.ui.ensureChild(OB.gmail.getToolbar(), BTN_ID, buildButton); else OB.ui.removeById(BTN_ID); })
+      .then((on) => { if (on) OB.ui.ensureChild(OB.gmail.getToolbarInsertionPoint(), BTN_ID, buildButton); else OB.ui.removeById(BTN_ID); })
       .catch((e) => console.log('[OB] folder-illusionist: init failed', e));
   }
   const api = { init, openPickerAt };

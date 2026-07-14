@@ -186,6 +186,9 @@ window.GMAIL_CAPITALIZER_DICTIONARY = {
     "OKR"
   ],
 
+  // Kept verbatim from the original extension but INTENTIONALLY not fed to the
+  // capitalizer engine: these entries are lowercase, so registering them as
+  // dictionary words would rewrite a mid-sentence "Hi" down to "hi".
   greetings: [
     "hi",
     "hello",

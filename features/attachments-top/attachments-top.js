@@ -60,9 +60,16 @@
     return (item.textContent || '').trim().split('\n')[0];
   }
 
+  function findTray(scope) {
+    // Self-tuning: static .aQH first, then the resolver's semantic probe
+    // (smallest container of the message's a[download] links).
+    const R = window.__OB.resolver;
+    return R ? R.resolve('attachmentTray', scope) : scope.querySelector(S().attachmentTray);
+  }
+
   function relocateAttachmentsFor(messageEl) {
     if (!messageEl) return;
-    const tray = messageEl.querySelector(S().attachmentTray);
+    const tray = findTray(messageEl);
     const body = messageEl.querySelector(S().messageBody);
     if (!tray || !body) return;
     if (tray.closest('.' + BAR_CLASS)) return;
@@ -138,7 +145,14 @@
   function teardown() {
     document.querySelectorAll('.' + BAR_CLASS).forEach((bar) => {
       const scope = bar.closest(S().messageContainer) || bar.parentElement;
-      const tray = scope ? scope.querySelector(S().attachmentTray) : null;
+      let tray = scope ? findTray(scope) : null;
+      // Whole-tray-moved edge (childless tray, audit fix 2026-07-14): the "item"
+      // in the bar IS the tray — move it back out next to the bar first, or the
+      // restore below would try tray.appendChild(tray) and throw mid-teardown.
+      if (tray && bar.contains(tray)) {
+        bar.parentNode.insertBefore(tray, bar);
+        tray.removeAttribute(MOVED_ATTR);
+      }
       if (tray) {
         bar.querySelectorAll('[' + MOVED_ATTR + ']').forEach((item) => {
           item.removeAttribute(MOVED_ATTR);
@@ -164,13 +178,23 @@
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
+  // Fully release the whole-body observer when the feature is off — a disabled
+  // feature must not keep Chrome delivering MutationRecords for every Gmail DOM
+  // change (audit fix 2026-07-14; this is the hot path core/router.js documents
+  // having removed for performance).
+  function stopObserving() {
+    if (observer) { observer.disconnect(); observer = null; }
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
+
   // Idempotent + reversible (bootstrap contract): re-reads the setting, then
   // either scans + observes or tears the bars back down.
   function init() {
     if (location.host !== 'mail.google.com') return;
     return window.__OB.settings.get('attachmentsTop').then((on) => {
       enabled = !!on;
-      if (enabled) { startObserving(); scan(); } else { teardown(); }
+      if (enabled) { startObserving(); scan(); } else { stopObserving(); teardown(); }
     }).catch((e) => console.log('[OB] attachments-top: init failed', e));
   }
 

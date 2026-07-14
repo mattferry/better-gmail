@@ -10,11 +10,15 @@ function load() {
     for (const k of CHECKS) document.getElementById(k).checked = !!s[k];
   });
 }
+function flash(id) {
+  for (const other of ['saved', 'savefail']) document.getElementById(other).hidden = true;
+  const el = document.getElementById(id); el.hidden = false;
+  setTimeout(() => (el.hidden = true), 1800);
+}
 function save(key, val) {
-  S.set(key, val).then(() => {
-    const el = document.getElementById('saved'); el.hidden = false;
-    setTimeout(() => (el.hidden = true), 1200);
-  });
+  S.set(key, val)
+    .then(() => flash('saved'))
+    .catch((e) => { console.warn('[OB] options: save failed', e); flash('savefail'); load(); });
 }
 document.getElementById('darkMode').addEventListener('change', (e) => save('darkMode', e.target.value));
 for (const k of CHECKS) document.getElementById(k).addEventListener('change', (e) => save(k, e.target.checked));

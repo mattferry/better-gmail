@@ -55,9 +55,14 @@
   }
 
   function getSubject() {
+    // Tab-title fallback: Gmail's title is "Subject - account@host - Gmail"
+    // (suffixes, not a prefix — audit fix 2026-07-14).
     return clean(
       document.querySelector(S().threadSubject)?.innerText ||
-      document.title.replace(/^Gmail\s*-\s*/i, '')
+      document.title
+        .replace(/\s*-\s*[^\s@-]+@[^\s-]+\s*-\s*Gmail\s*$/i, '')
+        .replace(/\s*-\s*Gmail\s*$/i, '')
+        .replace(/^Gmail\s*-\s*/i, '')
     );
   }
 
@@ -87,10 +92,13 @@
   }
 
   function getSentDate(attr, message) {
+    // Last-resort [title] fallback must actually look like a date — any icon's
+    // tooltip used to win here (audit fix 2026-07-14).
     const dateEl =
       message?.querySelector(S().messageDate) ||
       message?.querySelector('[title][alt]') ||
-      message?.querySelector('[title]');
+      Array.from(message?.querySelectorAll('[title]') || [])
+        .find((el) => !isNaN(Date.parse(el.getAttribute('title'))));
 
     if (dateEl) {
       const title = clean(dateEl.getAttribute('title'));
@@ -432,7 +440,10 @@ Subject: ${esc(getSubject())}<br>
     bindOnce();
     return window.__OB.settings.getAll().then((s) => {
       autoOn = !!s.outlookReply;
-      buttonOn = !!s.outlookReply && !!s.outlookReplyButton;
+      // Independent of autoOn: the button is the manual path, useful precisely
+      // when auto-convert is off (audit fix 2026-07-14 — options presents them
+      // as independent toggles).
+      buttonOn = !!s.outlookReplyButton;
       if (buttonOn) startButtonScanner(); else stopButtonScanner();
     }).catch((e) => console.log('[OB] outlook-reply: init failed', e));
   }

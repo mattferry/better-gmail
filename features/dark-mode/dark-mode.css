@@ -1,13 +1,14 @@
 /* Applied only when the root opts in, so 'off' is a no-op with zero cost. */
-html[data-ob-dark="on"] .ii,           /* verify live: Gmail rendered message body container */
-html[data-ob-dark="on"] .a3s,          /* verify live: Gmail rendered message body */
-html[data-ob-dark="on"] div[role="listitem"] .ii {
+/* LIVE-VERIFIED 2026-07-14: filter ONLY .ii. In real Gmail .a3s is NESTED inside
+   .ii, and filtering both composed the two inverts (body flipped back to light,
+   images triple-inverted to wrong colors) — the original .ii + .a3s rule made the
+   whole feature a visual no-op. Do not re-add .a3s or div[role="listitem"] .ii. */
+html[data-ob-dark="on"] .ii {
   filter: invert(1) hue-rotate(180deg);
   background: #fff;                     /* give the invert a white base -> becomes dark */
 }
-/* Un-invert media so photos/logos look normal */
+/* Un-invert media so photos/logos look normal (the second invert cancels the first) */
 html[data-ob-dark="on"] .ii img,
-html[data-ob-dark="on"] .a3s img,
 html[data-ob-dark="on"] .ii video {
   filter: invert(1) hue-rotate(180deg);
 }

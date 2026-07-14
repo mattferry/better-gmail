@@ -135,11 +135,13 @@
 
     // Rewrite one block of text. caretOffset marks where the user's caret sits so
     // the word still being typed (caret at end of text) is left alone.
-    function fixBlockText(text, caretOffset) {
+    // sentenceStartInitial (default true) lets per-node callers carry sentence
+    // state across text nodes — see fixTextNodes.
+    function fixBlockText(text, caretOffset, sentenceStartInitial) {
       const tokens = tokenize(text);
       const skipLast = isUnfinishedLastWord(tokens, caretOffset, text.length);
 
-      let sentenceStart = true;
+      let sentenceStart = sentenceStartInitial !== false;
       let output = '';
       let i = 0;
 
@@ -182,10 +184,52 @@
       return output;
     }
 
-    return { fixBlockText, addCustomWord };
+    // Per-text-node rewrite (audit fix 2026-07-14). The old whole-block rewrite
+    // concatenated every text node's content into the first node and blanked the
+    // rest, destroying inline formatting (links/bold/italic) and — when the block
+    // resolved to the whole editor — flattening multi-line drafts into one line.
+    // Rewriting each node separately can never corrupt structure; the trade-off
+    // is that words/phrases split across inline elements are no longer matched.
+    // `values` are the text nodes' strings in document order; caretNodeIndex /
+    // caretOffsetInNode locate the user's caret so the word still being typed in
+    // that node is left alone. Returns { changed, newValues, caretDelta } where
+    // caretDelta is the length change of the caret node (for caret restoration).
+    function fixTextNodes(values, caretNodeIndex, caretOffsetInNode) {
+      const newValues = [];
+      let sentenceStart = true;
+      let changed = false;
+      let caretDelta = 0;
+      (values || []).forEach(function (value, i) {
+        const text = String(value == null ? '' : value);
+        const isCaretNode = i === caretNodeIndex;
+        const fixed = fixBlockText(text, isCaretNode ? caretOffsetInNode : -1, sentenceStart);
+        if (fixed !== text) {
+          changed = true;
+          if (isCaretNode) caretDelta = fixed.length - text.length;
+        }
+        newValues.push(fixed);
+        sentenceStart = sentenceStartAfter(text, sentenceStart);
+      });
+      return { changed, newValues, caretDelta };
+    }
+
+    return { fixBlockText, fixTextNodes, addCustomWord };
   }
 
-  const api = { createCapitalizer, titleCaseCustomWord, tokenize };
+  // Walk a text's tokens the same way fixBlockText does and return whether the
+  // NEXT text would begin at a sentence start — used to carry sentence state
+  // across sibling text nodes so a node beginning mid-sentence isn't wrongly
+  // treated as a sentence start.
+  function sentenceStartAfter(text, initial) {
+    let flag = initial !== false;
+    for (const token of tokenize(String(text == null ? '' : text))) {
+      if (isWord(token)) flag = false;
+      else if (/[.!?]/.test(token)) flag = true;
+    }
+    return flag;
+  }
+
+  const api = { createCapitalizer, titleCaseCustomWord, tokenize, sentenceStartAfter };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') (window.__OB = window.__OB || {}).capitalizerEngine = api;
 })();

@@ -40,7 +40,9 @@
       if (style.backgroundColor && style.backgroundColor !== 'rgba(0, 0, 0, 0)') {
         fullStyle['background-color'] = style.backgroundColor;
       }
-      if (style.textDecorationLine) {
+      // 'none' is a truthy string — copying it stripped underlines on paste
+      // (audit fix 2026-07-14).
+      if (style.textDecorationLine && style.textDecorationLine !== 'none') {
         fullStyle['text-decoration'] = style.textDecorationLine;
       }
     });

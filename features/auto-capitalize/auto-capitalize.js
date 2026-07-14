@@ -70,44 +70,14 @@
     return nodes;
   }
 
-  function getCaretOffset(root) {
-    const selection = window.getSelection();
-    if (!selection || !selection.rangeCount) return null;
-    const range = selection.getRangeAt(0);
-    if (!root.contains(range.startContainer)) return null;
-    const before = document.createRange();
-    before.selectNodeContents(root);
-    before.setEnd(range.startContainer, range.startOffset);
-    return before.toString().length;
-  }
-
-  function restoreCaret(root, offset) {
-    if (offset === null) return;
-    const nodes = getTextNodes(root);
-    let count = 0;
-    for (const node of nodes) {
-      const next = count + node.nodeValue.length;
-      if (offset <= next) {
-        const range = document.createRange();
-        const selection = window.getSelection();
-        range.setStart(node, Math.max(0, offset - count));
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        return;
-      }
-      count = next;
-    }
-  }
-
-  function setBlockTextPreservingSingleNode(block, newText) {
-    const nodes = getTextNodes(block);
-    if (!nodes.length) return false;
-    nodes[0].nodeValue = newText;
-    for (let i = 1; i < nodes.length; i++) nodes[i].nodeValue = '';
-    return true;
-  }
-
+  // Per-text-node processing (audit fix 2026-07-14). The old path measured the
+  // block with innerText but restored the caret in textContent units (they
+  // diverge on <br>/nested blocks/collapsed whitespace), and rewrote the block by
+  // stuffing all text into the first text node — wiping link/bold text and able
+  // to flatten a whole multi-line draft. Each text node is now rewritten in
+  // place (structure can't be corrupted) with sentence state carried across
+  // nodes, and the caret is restored inside its own node — one consistent
+  // coordinate system throughout.
   function processCurrentBlock() {
     const selection = window.getSelection();
     if (!selection || !selection.rangeCount) return;
@@ -120,17 +90,34 @@
     if (!editor || shouldSkipNode(activeNode)) return;
 
     const block = getCurrentBlock(activeNode, editor);
-    const caretOffset = getCaretOffset(block);
-    if (caretOffset === null) return;
+    const nodes = getTextNodes(block);
+    if (!nodes.length) return;
 
-    const oldText = block.innerText || block.textContent || '';
-    const newText = engine.fixBlockText(oldText, caretOffset);
-    if (oldText === newText) return;
+    const caretNodeIndex = activeNode.nodeType === Node.TEXT_NODE ? nodes.indexOf(activeNode) : -1;
+    const caretOffsetInNode = caretNodeIndex >= 0 ? range.startOffset : -1;
 
-    setBlockTextPreservingSingleNode(block, newText);
+    const result = engine.fixTextNodes(nodes.map((n) => n.nodeValue), caretNodeIndex, caretOffsetInNode);
+    if (!result.changed) return;
 
-    const delta = newText.length - oldText.length;
-    restoreCaret(block, Math.min(caretOffset + delta, newText.length));
+    let caretNodeChanged = false;
+    nodes.forEach((node, i) => {
+      if (node.nodeValue !== result.newValues[i]) {
+        node.nodeValue = result.newValues[i];
+        if (i === caretNodeIndex) caretNodeChanged = true;
+      }
+    });
+
+    // Rewriting the caret's own node resets the selection — restore it there,
+    // shifted by that node's length change (e.g. "dont" -> "don't" is +1).
+    if (caretNodeChanged) {
+      const node = nodes[caretNodeIndex];
+      const offset = Math.max(0, Math.min(caretOffsetInNode + result.caretDelta, node.nodeValue.length));
+      const r = document.createRange();
+      r.setStart(node, offset);
+      r.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(r);
+    }
   }
 
   function scheduleProcessCurrentBlock(delay) {

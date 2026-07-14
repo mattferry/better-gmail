@@ -10,10 +10,16 @@
     'calendar.google.com': ['settingsGear']
   };
 
+  // Resolver roles that only exist while their UI is open/selected — a miss here
+  // is normal, not drift.
+  const CONTEXTUAL_ROLES = ['moveDropdown', 'attachmentTray', 'moveToButton', 'labelsButton',
+    'markUnread', 'markRead', 'archiveButton', 'deleteButton', 'snoozeButton', 'searchOptions'];
+
   function run() {
     const host = location.host;
     const A = window.__OB && window.__OB.gmail;
     const C = window.__OB && window.__OB.calendar;
+    const RES = window.__OB && window.__OB.resolver;
     const results = [];
     if (host === 'mail.google.com' && A) {
       for (const [name, sel] of Object.entries(A.SELECTORS)) {
@@ -40,6 +46,18 @@
       console.log('[OB] self-test: all', results.length, 'selectors OK');
     } else if (!critical.length) {
       console.log('[OB] self-test: all critical selectors OK');
+    }
+
+    // Self-tuning resolver report: which tier (static / learned / probe) satisfied
+    // each fragile role. 'probe' means the static selector has drifted and the
+    // extension healed itself; 'miss' on a non-contextual role means real drift.
+    if (host === 'mail.google.com' && RES) {
+      const tiers = RES.report();
+      const healed = tiers.filter((t) => t.tier === 'probe' || t.tier === 'learned');
+      const missing = tiers.filter((t) => !t.ok && !CONTEXTUAL_ROLES.includes(t.role));
+      if (healed.length) console.log('[OB] self-test: resolver self-tuned roles:', healed);
+      if (missing.length) console.warn('[OB] self-test: resolver could not find (real drift):', missing);
+      results.push(...tiers.map((t) => ({ name: 'role:' + t.role, sel: t.tier, ok: t.ok })));
     }
     return results;
   }

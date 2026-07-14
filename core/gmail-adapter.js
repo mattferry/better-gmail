@@ -1,56 +1,54 @@
 (function () {
   'use strict';
 
-  // Every selector must be verified live before shipping. Update the date + note when Gmail changes.
+  // Structural selectors (live-verified 2026-07-14 against real Gmail). The
+  // fragile, drift-prone lookups (toolbar buttons, dropdowns, search controls)
+  // now go through core/selector-resolver.js, which self-tunes at runtime —
+  // static candidates → learned cache → semantic probe. Entries below that have
+  // a resolver role are kept for reference/fallback only.
   const SELECTORS = {
-    // verify live — main toolbar container above the message list
+    // resolver role: toolbar — main toolbar container above the message list
     toolbar: 'div[gh="mtb"]',
-    // left-nav label links; filter to those with a data-tooltip / text = label name
+    // left-nav label links; the href carries the full label path
     leftNavLabelLink: 'div[role="navigation"] a[href*="#label"]',
     // message list rows
     listRow: 'div[role="main"] tr[role="row"]',
     // a selected row carries a checked checkbox
     rowCheckbox: 'div[role="checkbox"]',
-    // toolbar "Move to" button (folder-with-arrow); found by aria-label
+    // resolver roles: moveToButton / labelsButton / markUnread / markRead /
+    // archiveButton / deleteButton / snoozeButton / searchInput / searchOptions
     moveToButton: 'div[aria-label="Move to"], div[data-tooltip="Move to"]',
-    // toolbar "Labels" button
     labelsButton: 'div[aria-label="Labels"], div[data-tooltip="Labels"]',
-    // "Mark as unread" toolbar/menu item
     markUnread: 'div[aria-label="Mark as unread"], div[data-tooltip="Mark as unread"]',
     markRead: 'div[aria-label="Mark as read"], div[data-tooltip="Mark as read"]',
-    // the search box (used to drive "create filter")
     searchInput: 'input[aria-label="Search mail"], input[name="q"]',
-    // "Show search options" caret that opens the filter builder
-    searchOptions: 'button[aria-label="Show search options"]',
+    searchOptions: 'button[aria-label="Advanced search options"], button[aria-label="Show search options"]',
     // an open thread's recipient chips
     recipientChip: 'span[email]',
-    // toolbar action buttons (appear when a row is selected / thread open)
     archiveButton: 'div[aria-label="Archive"], div[data-tooltip="Archive"]',
     deleteButton: 'div[aria-label="Delete"], div[data-tooltip="Delete"]',
     snoozeButton: 'div[aria-label="Snooze"], div[data-tooltip="Snooze"]',
-    // verify live — a list row's subject text
+    // a list row's subject text
     rowSubject: '[role="link"] span, .bog',
-    // fallback row matcher for closestRow when listRow doesn't match (e.g. a differently-scoped ancestor)
+    // fallback row matcher for closestRow when listRow doesn't match
     rowFallback: 'tr[role="row"], div[role="row"]',
 
-    // --- Move-to / Labels native dropdown (opened by moveToButton / labelsButton) ---
-    // UNVERIFIED — needs live tuning
-    moveDropdown: 'div[role="listbox"], div.J-M',
-    // UNVERIFIED — needs live tuning
-    moveDropdownInput: 'div[role="listbox"] input, div.J-M input[type="text"]',
-    // UNVERIFIED — needs live tuning
-    moveDropdownItem: 'div[role="listbox"] [role="option"], div.J-M .vY',
+    // --- Move-to / Labels native dropdown ---
+    // LIVE-VERIFIED 2026-07-14: container is div.J-M (several exist; only one
+    // visible when open); items are [role="menuitem"] (the old .vY/[role=option]
+    // matched nothing); the filter input is input[type="text"] inside it.
+    moveDropdown: 'div.J-M',
+    moveDropdownInput: 'input[type="text"], input:not([type])',
+    moveDropdownItem: '[role="menuitem"], [role="option"]',
 
     // --- Open message internals (attachments-top, outlook-reply) ---
-    // These came from the team's standalone extensions (in daily use at work when
-    // ported 2026-07-09), so they were live-verified in that context — not in this repo.
     // an expanded message in a thread
     messageContainer: 'div.adn.ads',
-    // broader fallback when messageContainer misses (walk up from a tray / rect math)
+    // broader fallback when messageContainer misses
     messageContainerFallback: '[role="listitem"], .adn',
     // any element that can stand in for "a message" (outlook-reply rect comparisons)
     messageAny: '.adn.ads, .adn, .gs',
-    // Gmail's own attachment tray (real attached files only — never signature images)
+    // Gmail's own attachment tray — resolver role: attachmentTray
     attachmentTray: '.aQH',
     // the rendered message body
     messageBody: '.a3s.aiL, .a3s',
@@ -68,22 +66,63 @@
     // "Show trimmed content" (three dots) button candidates
     trimmedContent: ".ajR, .ajT, [aria-label*='Show trimmed content'], [data-tooltip*='Show trimmed content'], [role='button']",
 
-    // --- Compose (auto-capitalize, format-painter, table-inserter, outlook-reply) ---
-    // the editable draft body
+    // --- Compose (live-verified 2026-07-14, all four match) ---
     composeBody: "div[contenteditable='true'][role='textbox']",
-    // formatting toolbar inside a compose window (table-inserter injects here)
     composeToolbar: '.gU.Up',
-    // containers that can act as a compose root, nearest-ancestor-first via closest()
     composeDialog: "div[role='dialog'], .M9, .AD, .aoI, .nH",
-    // the send-button bar of a compose window
     composeSendBar: ".btC, .gU.Up, [role='toolbar']"
   };
 
   function q(sel, root) { return (root || document).querySelector(sel); }
   function qa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
+  function R() { return window.__OB.resolver; }
 
-  function isReady() { return !!q(SELECTORS.toolbar); }
-  function getToolbar() { return q(SELECTORS.toolbar); }
+  // Gmail's toolbar buttons IGNORE a bare el.click() — their handlers key off real
+  // mousedown/mouseup sequences (live-verified 2026-07-14: .click() on "Move to"
+  // did nothing; this sequence opens the dropdown). Use for any Gmail-owned control.
+  function dispatchClick(el) {
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    const opts = {
+      bubbles: true, cancelable: true, view: window, button: 0,
+      clientX: r.left + r.width / 2, clientY: r.top + r.height / 2
+    };
+    for (const type of ['mousedown', 'mouseup', 'click']) el.dispatchEvent(new MouseEvent(type, opts));
+    return true;
+  }
+
+  // Bounded rAF wait for asynchronously-rendered UI (native dropdowns).
+  function waitFor(getEl, timeoutMs) {
+    return new Promise((resolve) => {
+      const deadline = Date.now() + (timeoutMs || 2000);
+      (function poll() {
+        let el = null;
+        try { el = getEl(); } catch (e) { /* keep polling */ }
+        if (el) return resolve(el);
+        if (Date.now() > deadline) return resolve(null);
+        requestAnimationFrame(poll);
+      })();
+    });
+  }
+
+  function isReady() { return !!R().resolve('toolbar'); }
+  function getToolbar() { return R().resolve('toolbar'); }
+
+  // Where injected toolbar UI must go. Appending to div[gh="mtb"] itself wraps
+  // onto a second line that overlays the first message row (live-measured
+  // 2026-07-14): the real button row is an inner FLEX container. Found
+  // semantically (first flex descendant with children), not by Gmail's class.
+  function getToolbarInsertionPoint() {
+    const tb = getToolbar();
+    if (!tb) return null;
+    const walker = document.createTreeWalker(tb, NodeFilter.SHOW_ELEMENT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const d = getComputedStyle(node).display;
+      if ((d === 'flex' || d === 'inline-flex') && node.children.length) return node;
+    }
+    return tb;
+  }
 
   function getLeftNavLabels() {
     // Return label full-names. Gmail nests sub-labels; the visible text is the leaf,
@@ -114,65 +153,71 @@
     return qa(SELECTORS.recipientChip).map((s) => s.getAttribute('email')).filter(Boolean);
   }
 
+  // Both return a Promise<boolean> — the native dropdown renders asynchronously.
   function clickMoveTo(labelFullName) {
-    const btn = q(SELECTORS.moveToButton);
-    if (!btn) return false;
-    btn.click(); // opens Gmail's native Move-to dropdown (applies label + archives)
-    // The dropdown renders a searchable list; type the label and Enter, OR click the matching item.
+    const btn = R().resolve('moveToButton');
+    if (!btn) return Promise.resolve(false);
+    dispatchClick(btn);
     return selectFromNativeDropdown(labelFullName);
   }
 
   function applyLabel(rowEls, labelFullName) {
-    const btn = q(SELECTORS.labelsButton);
-    if (!btn) return false;
-    btn.click();
-    return selectFromNativeDropdown(labelFullName, /*keepInInbox*/ true);
+    const btn = R().resolve('labelsButton');
+    if (!btn) return Promise.resolve(false);
+    dispatchClick(btn);
+    return selectFromNativeDropdown(labelFullName);
   }
 
-  // Helper: after opening a native label/move dropdown, pick the target label.
-  // BEST-EFFORT / UNVERIFIED — needs live tuning against the real dropdown DOM (see task-2 Step 3).
-  // Strategy: the dropdown has a filter input; set its value, dispatch 'input',
-  // then find the option whose text === leaf label name and click it.
-  //
-  // LIVE-TUNING: Gmail renders the Move-to / Labels dropdown ASYNCHRONOUSLY after the
-  // button click. A synchronous query here will miss it. The live-tuning pass must wait
-  // for the dropdown (MutationObserver or a short requestAnimationFrame/setTimeout retry)
-  // BEFORE setting the filter input and clicking the matching option — this is NOT just a
-  // selector swap.
-  function selectFromNativeDropdown(labelFullName, keepInInbox) {
-    // keepInInbox is reserved for future divergence between Move-to and Labels dropdown
-    // handling; both currently use the same filter-and-click mechanics.
+  // After opening the native Move-to/Labels dropdown: wait for it to render,
+  // type the leaf into its filter input, then click the matching item.
+  // (Move-to and Labels currently share mechanics; the semantic difference —
+  // archive vs keep-in-inbox — comes from which button opened the dropdown.)
+  async function selectFromNativeDropdown(labelFullName) {
     if (!labelFullName) return false;
-    const input = q(SELECTORS.moveDropdownInput);
-    if (!input) return false;
     const leaf = labelFullName.split('/').pop();
-    input.focus();
-    input.value = leaf;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    const item = qa(SELECTORS.moveDropdownItem).find((el) => (el.textContent || '').trim() === leaf);
+    const matchesLabel = (el) => {
+      const t = (el.textContent || '').trim();
+      return t === leaf || t === labelFullName;
+    };
+
+    const dropdown = await waitFor(() => R().resolve('moveDropdown'), 2500);
+    if (!dropdown) return false;
+
+    const input = q(SELECTORS.moveDropdownInput, dropdown);
+    if (input) {
+      input.focus();
+      input.value = leaf;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      // give the list a beat to filter down
+      await waitFor(() => qa(SELECTORS.moveDropdownItem, dropdown).find(matchesLabel), 1500);
+    }
+    const item = qa(SELECTORS.moveDropdownItem, dropdown).find(matchesLabel);
     if (!item) return false;
-    item.click();
+    dispatchClick(item);
     return true;
   }
 
   function selectRow(rowEl) {
     if (!rowEl) return false;
-    // Clear any stale selection so toolbar actions can't hit the wrong message.
-    getSelectedRowEls().forEach((r) => {
-      if (r !== rowEl) { const cb = q(SELECTORS.rowCheckbox, r); if (cb) cb.click(); }
-    });
+    // Validate the target BEFORE touching the existing selection, so a row we
+    // can't select never costs the user their current multi-select.
     const cb = q(SELECTORS.rowCheckbox, rowEl);
     if (!cb) return false;
+    getSelectedRowEls().forEach((r) => {
+      if (r !== rowEl) { const other = q(SELECTORS.rowCheckbox, r); if (other) other.click(); }
+    });
     if (cb.getAttribute('aria-checked') !== 'true') cb.click();
     return true;
   }
 
-  function clickToolbar(sel) { const b = q(sel); if (!b) return false; b.click(); return true; }
-  function markUnread(rowEls) { return clickToolbar(SELECTORS.markUnread); }
-  function markRead(rowEls) { return clickToolbar(SELECTORS.markRead); }
-  function archive() { return clickToolbar(SELECTORS.archiveButton); }
-  function del() { return clickToolbar(SELECTORS.deleteButton); }     // 'delete' is reserved
-  function snooze() { return clickToolbar(SELECTORS.snoozeButton); }  // opens Gmail's native snooze picker
+  function clickToolbarRole(role) { const b = R().resolve(role); if (!b) return false; return dispatchClick(b); }
+  // These act on Gmail's CURRENT selection (callers select rows first — see
+  // context-menu.js, which runs selectRow before invoking them).
+  function markUnread() { return clickToolbarRole('markUnread'); }
+  function markRead() { return clickToolbarRole('markRead'); }
+  function archive() { return clickToolbarRole('archiveButton'); }
+  function del() { return clickToolbarRole('deleteButton'); }     // 'delete' is reserved
+  function snooze() { return clickToolbarRole('snoozeButton'); }  // opens Gmail's native snooze picker
   function closestRow(el) {
     return el && (el.closest(SELECTORS.listRow) || el.closest(SELECTORS.rowFallback));
   }
@@ -185,17 +230,18 @@
   function openCreateFilterForRow(rowEl) {
     // Gmail: open search options with the sender prefilled, which exposes "Create filter".
     const info = getRowInfo(rowEl);
-    const search = q(SELECTORS.searchInput);
-    const opts = q(SELECTORS.searchOptions);
+    const search = R().resolve('searchInput');
+    const opts = R().resolve('searchOptions');
     if (!search || !opts || !info?.from) return false;
     search.focus(); search.value = 'from:(' + info.from + ')';
     search.dispatchEvent(new Event('input', { bubbles: true }));
-    opts.click(); // opens the filter builder with From prefilled; user clicks "Create filter"
+    dispatchClick(opts); // opens the filter builder with From prefilled; user clicks "Create filter"
     return true;
   }
 
-  const api = { isReady, getToolbar, getLeftNavLabels, getSelectedRowEls, getRowInfo,
+  const api = { isReady, getToolbar, getToolbarInsertionPoint, getLeftNavLabels, getSelectedRowEls, getRowInfo,
     getOpenThreadRecipients, clickMoveTo, applyLabel, markUnread, markRead,
-    openCreateFilterForRow, archive, del, snooze, closestRow, closestListRow, selectRow, SELECTORS };
+    openCreateFilterForRow, archive, del, snooze, closestRow, closestListRow, selectRow,
+    dispatchClick, waitFor, SELECTORS };
   if (typeof window !== 'undefined') (window.__OB = window.__OB || {}).gmail = api;
 })();

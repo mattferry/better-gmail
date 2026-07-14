@@ -41,8 +41,10 @@
     try {
       const info = OB.gmail.getRowInfo(row);
       const items = [
-        { label: 'Mark as unread', onClick: guard('markUnread', () => OB.gmail.markUnread([row])) },
-        { label: 'Mark as read', onClick: guard('markRead', () => OB.gmail.markRead([row])) }
+        // markUnread/markRead act on Gmail's current selection — selectRow(row)
+        // above guarantees that selection is exactly this row.
+        { label: 'Mark as unread', onClick: guard('markUnread', () => OB.gmail.markUnread()) },
+        { label: 'Mark as read', onClick: guard('markRead', () => OB.gmail.markRead()) }
       ];
       if (categoriesEnabled) {
         items.push({ label: 'Categorize…', onClick: guard('categorize', () => openCategorySubmenu(e.clientX, e.clientY)) });
