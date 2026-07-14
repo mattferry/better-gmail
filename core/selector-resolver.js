@@ -251,7 +251,11 @@
       if (chrome.runtime && chrome.runtime.lastError) return;
       const saved = (result && result[STORAGE_KEY]) || {};
       Object.keys(saved).forEach((role) => {
-        if (!(role in learned) && saved[role] && saved[role].selector) learned[role] = saved[role].selector;
+        const sel = saved[role] && saved[role].selector;
+        // Drop any entry poisoned by v0.3.2 field use (our own relocated
+        // attachments bar cached as the tray) — verify() would pass it, so it
+        // can't self-evict; refuse to load it (QA finding).
+        if (!(role in learned) && sel && !/ob-attachments-bar/.test(sel)) learned[role] = sel;
       });
     });
   }

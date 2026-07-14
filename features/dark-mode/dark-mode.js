@@ -38,10 +38,10 @@
   }
 
   function stamp(el) {
-    // Never stamp inside an inverted region (.ii body or a marked compose
-    // editor): a dark background under the invert filter flips to light. Guards
-    // EVERY stamp site (QA finding).
-    if (el.closest('.ii') || el.closest('[' + EDITOR_ATTR + ']')) return;
+    // Never stamp inside an inverted region (.ii body, a marked compose editor,
+    // or an inverted reply-bar band): a dark background under an invert filter
+    // flips to light. Guards EVERY stamp site (QA finding).
+    if (el.closest('.ii') || el.closest('[' + EDITOR_ATTR + ']') || el.closest('[' + INVERT_ATTR + ']')) return;
     if (!el.hasAttribute(SURFACE_ATTR)) el.setAttribute(SURFACE_ATTR, '');
   }
 
@@ -101,8 +101,10 @@
         // Skip a band that contains OR is inside an inverted region — a band that
         // CONTAINS a marked inline-reply editor would invert it a second time
         // (QA finding), and a band inside .ii/an editor must never be touched.
-        if (el.querySelector('.ii') || el.querySelector('[' + EDITOR_ATTR + ']') ||
-            el.closest('.ii') || el.closest('[' + EDITOR_ATTR + ']')) return;
+        // Cheap closest() ancestor checks first, then the subtree scans, so deep
+        // body content short-circuits before the O(subtree) querySelectors.
+        if (el.closest('.ii') || el.closest('[' + EDITOR_ATTR + ']') ||
+            el.querySelector('.ii') || el.querySelector('[' + EDITOR_ATTR + ']')) return;
         if (el.offsetWidth > minW && el.offsetHeight > 8 && isOpaqueLight(el)) bands.push(el);
       });
       bands.forEach((el) => {
